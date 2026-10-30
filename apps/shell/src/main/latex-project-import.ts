@@ -1,6 +1,6 @@
 import JSZip from 'jszip'
 import { assertZipInflatesWithinLimits } from '@genoffice/zip-gate'
-import { lstat, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, resolve } from 'node:path'
 import { TextDecoder } from 'node:util'
 import {
@@ -124,7 +124,8 @@ export async function extractLatexProject(
   main: string,
 ): Promise<LatexProjectInfo> {
   if (!archive.candidates.includes(main)) throw new LatexArchiveError('noMainDocument')
-  const parentPath = resolve(parent)
+  // macOS exposes /var through /private/var. Keep one identity at the boundary.
+  const parentPath = await realpath(parent)
   const base =
     basename(archivePath, '.zip')
       .replace(/[^\p{L}\p{N}._-]+/gu, '-')

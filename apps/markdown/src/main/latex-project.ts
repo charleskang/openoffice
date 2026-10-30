@@ -247,7 +247,12 @@ export async function withLatexProjectSnapshot<T>(
   signal: AbortSignal,
   action: (mainPath: string, mainText: string) => Promise<T>,
 ): Promise<T> {
-  const parent = resolve(tmpdir())
+  const root = await realpath(project.root)
+  const current = await realpath(currentPath)
+  const main = await realpath(project.mainPath)
+  if (!withinProject(root, current) || !withinProject(root, main))
+    throw new Error('Project file is outside its limits')
+  const parent = await realpath(tmpdir())
   const work = await mkdtemp(join(parent, 'officemax-project-'))
   if (dirname(work) !== parent) throw new Error('Unexpected project snapshot directory')
   try {
@@ -258,7 +263,7 @@ export async function withLatexProjectSnapshot<T>(
       const info = await lstat(file.path)
       total += info.size
       if (
-        !withinProject(project.root, actual) ||
+        !withinProject(root, actual) ||
         info.isSymbolicLink() ||
         !info.isFile() ||
         info.size > PROJECT_LIMITS.maxPartBytes ||
@@ -268,10 +273,10 @@ export async function withLatexProjectSnapshot<T>(
       const target = resolve(work, file.relativePath)
       if (!withinProject(work, target)) throw new Error('Invalid project file path')
       await mkdir(dirname(target), { recursive: true })
-      if (file.path === currentPath) await writeFile(target, text, { flag: 'wx' })
+      if (actual === current) await writeFile(target, text, { flag: 'wx' })
       else await copyFile(file.path, target)
     }
-    const mainPath = resolve(work, relative(project.root, project.mainPath))
+    const mainPath = resolve(work, relative(root, main))
     const mainText = new TextDecoder('utf-8', { fatal: true }).decode(await readFile(mainPath))
     return await action(mainPath, mainText)
   } finally {

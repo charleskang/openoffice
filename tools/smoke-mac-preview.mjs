@@ -65,7 +65,7 @@ if (engine.status !== 0) throw Error('Bundled Tectonic cannot run: ' + engine.st
 const warmup = join(scratch, 'warmup.tex')
 await writeFile(
   warmup,
-  '\\documentclass{article}\\usepackage{fontspec}\\setmainfont{Apple SD Gothic Neo}\\begin{document}Local compile. 한글 확인.\\end{document}',
+  '\\documentclass{article}\\usepackage{fontspec}\\setmainfont{Apple SD Gothic Neo}\\begin{document}Local compile. 한글 확인.\\[ E=mc^2 \\]\\end{document}',
 )
 const warm = spawnSync(
   join(resources, 'latex/tectonic'),

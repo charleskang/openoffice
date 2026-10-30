@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import JSZip from 'jszip'
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import {
   extractLatexProject,
   inspectLatexArchive,
@@ -182,4 +182,29 @@ describe('LaTeX archive import', () => {
     )
     expect(await findLatexProject(project.mainPath)).toBeNull()
   })
+})
+
+it('uses one canonical project identity through a linked parent and applies a live child buffer opened through that alias', async () => {
+  const input = await fixture({ 'main.tex': main, 'sections/body.tex': 'Saved body' })
+  const holder = await mkdtemp(join(tmpdir(), 'officemax-zip-test-'))
+  roots.push(holder)
+  const alias = join(holder, 'linked-parent')
+  await symlink(input.root, alias, process.platform === 'win32' ? 'junction' : 'dir')
+  const archive = await inspectLatexArchive(input.path)
+  const project = await extractLatexProject(input.path, alias, archive, 'main.tex')
+  expect(project.root).toBe(await realpath(project.root))
+  const child = join(alias, basename(project.root), 'sections/body.tex')
+  expect((await findLatexProject(child))?.mainPath).toBe(project.mainPath)
+  await withLatexProjectSnapshot(
+    project,
+    child,
+    'Live alias buffer',
+    new AbortController().signal,
+    async (mainPath) => {
+      expect(await readFile(join(dirname(mainPath), 'sections/body.tex'), 'utf8')).toBe(
+        'Live alias buffer',
+      )
+    },
+  )
+  expect(await readFile(child, 'utf8')).toBe('Saved body')
 })
