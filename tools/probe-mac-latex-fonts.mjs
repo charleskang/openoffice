@@ -7,13 +7,14 @@ await mkdir(out, { recursive: true })
 const resources = join(app, 'Contents/Resources')
 const engines = [['bundled', join(resources, 'latex/tectonic')]]
 if (process.argv[4]) engines.push(['previous', resolve(process.argv[4])])
-const font = join(resources, 'template-fonts/NotoSerifKR-Regular.otf')
+const fontDirectory = join(resources, 'template-fonts') + '/'
 const cases = {
   default: '',
   apple: '\\usepackage{fontspec}\n\\setmainfont{Apple SD Gothic Neo}',
   appleOpenType: '\\usepackage{fontspec}\n\\setmainfont[Renderer=OpenType]{Apple SD Gothic Neo}',
   arial: '\\usepackage{fontspec}\n\\setmainfont{Arial}',
-  bundled: '\\usepackage{fontspec}\n\\setmainfont{' + font + '}',
+  bundled:
+    '\\usepackage{fontspec}\n\\setmainfont[Path={' + fontDirectory + '}]{NotoSerifKR-Regular.otf}',
 }
 const results = []
 for (const [engineName, engine] of engines) {
