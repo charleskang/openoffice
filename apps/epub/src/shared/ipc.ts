@@ -48,6 +48,7 @@ export const EPUB_CHANNELS = {
   openFile: 'epub:open-file',
   /** invoke(spineIndex) → `EpubChapterResult`: one chapter's text as it is now (unsaved edits included) */
   readChapter: 'epub:read-chapter',
+  exportPdf: 'epub:export-pdf',
   /** invoke(url) → boolean: open an outside link in the system browser (safe addresses only) */
   openLink: 'epub:open-link',
 
@@ -380,7 +381,15 @@ export type EpubSaveResult =
  * Save As go through `saveRequest` so the main process can wait for them.
  */
 export type EpubMenuCommand =
-  'undo' | 'redo' | 'find' | 'replace' | 'zoom-in' | 'zoom-out' | 'zoom-reset' | 'translate-book'
+  | 'undo'
+  | 'redo'
+  | 'find'
+  | 'replace'
+  | 'zoom-in'
+  | 'zoom-out'
+  | 'zoom-reset'
+  | 'translate-book'
+  | 'export-pdf'
 
 // ---- reading position and view settings ----
 
@@ -570,6 +579,9 @@ export interface EpubCoreApi {
   consumePending(): Promise<string | null>
   openFile(path: string): Promise<EpubOpenFileResult>
   readChapter(spineIndex: number): Promise<EpubChapterResult>
+  exportPdf(
+    chapters: string[],
+  ): Promise<{ ok: true; path?: string; canceled?: boolean } | { ok: false; error: string }>
   applyEdits(request: EpubApplyEditsRequest): Promise<EpubEditResult>
   replaceRanges(request: EpubReplaceRangesRequest): Promise<EpubEditResult>
   /** this tab's book translation started (true) or ended (false) */

@@ -9,6 +9,8 @@ const TEXT_EXTS = [
   'txt',
   'md',
   'markdown',
+  'tex',
+  'ltx',
   'csv',
   'tsv',
   'json',

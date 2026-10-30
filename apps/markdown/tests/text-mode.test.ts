@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isSourceMode, textModeForPath } from '../src/shared/text-mode'
-import { readSourceText, writeSourceText } from '../src/shared/source-text'
+import { decodeLatexSource, readSourceText, writeSourceText } from '../src/shared/source-text'
 
 describe('textModeForPath', () => {
   it('keeps markdown files on the block editor', () => {
@@ -12,6 +12,15 @@ describe('textModeForPath', () => {
   it('opens JSON as source with its own highlighting', () => {
     expect(textModeForPath('/a/data.json')).toBe('json')
     expect(textModeForPath('/a/DATA.JSON')).toBe('json')
+  })
+
+  it('opens LaTeX as source on Windows and Mac paths', () => {
+    for (const path of ['C:\\papers\\main.tex', '/Users/me/papers/main.ltx', '/a/MAIN.TEX']) {
+      expect(textModeForPath(path)).toBe('latex')
+      expect(isSourceMode(textModeForPath(path))).toBe(true)
+    }
+    expect(textModeForPath('/a/main.tex.md')).toBe('markdown')
+    expect(textModeForPath('/a/main.tex.bak')).toBe('plain')
   })
 
   it('opens everything else as plain source', () => {
@@ -41,6 +50,23 @@ describe('isSourceMode', () => {
 })
 
 describe('source text round-trip', () => {
+  it('decodes UTF-8 TeX without dropping its BOM and refuses malformed input', () => {
+    const source = '\uFEFF\\section{한글}\r\n'
+    expect(decodeLatexSource(Buffer.from(source, 'utf8'))).toBe(source)
+    expect(() => decodeLatexSource(new Uint8Array([0xff, 0xfe, 0x41, 0]))).toThrow()
+  })
+  it('preserves TeX commands, comments, Unicode, BOM and line endings through edits', () => {
+    const source =
+      '\\documentclass{article}\n% ![literal](figure.png)\n\\begin{document}\n한글 $a_b^2$ \\% \\input{part}\n\\end{document}'
+    for (const eol of ['\n', '\r\n']) {
+      for (const bom of ['', '\uFEFF']) {
+        const raw = bom + source.replace(/\n/g, eol)
+        const { text, format } = readSourceText(raw)
+        expect(writeSourceText(text, format)).toBe(raw)
+        expect(writeSourceText(text.replace('a_b', 'x_b'), format)).toBe(raw.replace('a_b', 'x_b'))
+      }
+    }
+  })
   it('returns an untouched file byte for byte', () => {
     for (const raw of [
       'hello\n',

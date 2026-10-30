@@ -811,7 +811,7 @@ function layoutParagraph(
   let cur: Token[] = []
   let curW = 0
 
-  const pushLine = (toks: Token[]) => {
+  const pushLine = (toks: Token[], emptySource?: TextRun) => {
     // Strip trailing whitespace (recorded verbatim: the editor re-adds it when joining wrapped lines back into a paragraph)
     let trailingSpace = false
     let trailingText = ''
@@ -823,7 +823,7 @@ function layoutParagraph(
       // An empty line still occupies one line height. A textless run (the marker
       // element-level font ops leave on blank cells/paragraphs) styles the line and is
       // kept as a zero-width glyph run so the editor and ribbon readback see the format.
-      const src = p.runs[0]
+      const src = emptySource ?? p.runs[0]
       const st: RunStyle = src
         ? runStyle(src, scale, fontScale)
         : {
@@ -883,7 +883,7 @@ function layoutParagraph(
   for (const tok of tokens) {
     // <a:br/> forced break: breaks regardless of wrap; record the sentinel run index for editor round-trips
     if (tok.isBreak) {
-      pushLine(cur)
+      pushLine(cur, p.runs[tok.srcRun])
       lines[lines.length - 1]!.softBreakAfter = tok.srcRun
       cur = []
       curW = 0
@@ -936,7 +936,7 @@ function layoutParagraph(
   }
   if (cur.length) pushLine(cur)
   // A trailing <a:br/> shows an empty last line (PowerPoint counts it when anchoring)
-  else if (endedWithBreak) pushLine([])
+  else if (endedWithBreak) pushLine([], p.endRun ?? p.runs[tokens[tokens.length - 1]?.srcRun ?? 0])
   if (!lines.length) pushLine([])
   return lines
 }

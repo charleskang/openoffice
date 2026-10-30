@@ -266,4 +266,6 @@ export const pt = {
   appStatusSummaryZoomInserted: 'Slide de zoom de resumo inserido com {count} blocos',
   appSectionSummary: 'Seção de resumo',
   appSectionN: 'Seção {n}',
+  appChartWorkbookOpenError:
+    'Não foi possível abrir os dados do gráfico. Verifique se há uma planilha incorporada.',
 } satisfies Record<keyof typeof zh, string>

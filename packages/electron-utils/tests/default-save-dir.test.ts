@@ -97,8 +97,8 @@ describe('configuredDefaultSaveDir', () => {
     const app = {
       getPath: (name: 'userData' | 'documents') => (name === 'userData' ? userData : documents),
     }
-    expect(configuredDefaultSaveDir(app)).toBe(join(documents, 'IeumOffice'))
-    expect(existsSync(join(documents, 'IeumOffice'))).toBe(true)
+    expect(configuredDefaultSaveDir(app)).toBe(join(documents, 'OfficeMax'))
+    expect(existsSync(join(documents, 'OfficeMax'))).toBe(true)
     // the upstream app's folder is its own: never created or reused here
     expect(existsSync(join(documents, 'GenOffice'))).toBe(false)
   })

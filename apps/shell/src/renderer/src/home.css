@@ -123,11 +123,19 @@ body.vib .home {
   margin-bottom: 20px;
 }
 
-.logo-lockup {
+.workspace-brand-icon {
   display: block;
   height: 28px;
-  width: auto;
-  filter: invert(var(--logo-invert));
+  width: 28px;
+  flex: none;
+}
+
+.workspace-brand-name {
+  color: var(--text);
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: -0.7px;
+  white-space: nowrap;
 }
 
 /* shown while RELEASE_IS_BETA */
@@ -442,6 +450,147 @@ body.vib .home {
 }
 
 /* ---- recents ---- */
+
+.workspace-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+.workspace-heading h1 {
+  margin: 4px 0 8px;
+  color: var(--text-primary);
+  font-size: 26px;
+  font-weight: 650;
+}
+.workspace-heading p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.workspace-actions,
+.workspace-folders,
+.workspace-new {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.workspace-actions {
+  margin: 24px 0;
+}
+.workspace-start button {
+  min-width: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.workspace-start button:hover {
+  border-color: var(--accent);
+  background: var(--hover);
+}
+.workspace-start .workspace-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast, var(--surface));
+}
+.workspace-start .workspace-primary:hover {
+  background: var(--accent-hover);
+}
+.workspace-start .workspace-link {
+  border: 0;
+  color: var(--accent);
+  background: transparent;
+}
+.workspace-start .workspace-resume {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 18px 20px;
+  text-align: start;
+  background: var(--accent-soft);
+}
+.workspace-resume span,
+.workspace-folders > span,
+.workspace-new > span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.workspace-resume strong,
+.workspace-resume small {
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workspace-resume strong {
+  font-size: 16px;
+}
+.workspace-resume small {
+  color: var(--text-muted);
+}
+.workspace-folders {
+  margin: 18px 0;
+}
+.workspace-folders button {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workspace-new {
+  padding-block: 16px;
+  border-block-end: 1px solid var(--border);
+}
+.workspace-new button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+.workspace-create {
+  margin-top: 24px;
+}
+.workspace-create summary {
+  padding: 12px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.workspace-create .quick-card {
+  flex-direction: row;
+  gap: 10px;
+  padding: 12px;
+}
+.workspace-create .quick-card:hover {
+  box-shadow: none;
+}
+.content.workspace-home:has(.proj-empty) {
+  display: block;
+}
+.workspace-home .proj-empty {
+  min-height: 0;
+  margin: 0;
+  padding: 28px 12px;
+}
+.workspace-home .proj-empty-icon {
+  width: 30px;
+  height: 30px;
+}
+@media (max-width: 700px) {
+  .workspace-heading {
+    gap: 8px;
+  }
+  .workspace-actions button {
+    flex: 1 1 auto;
+  }
+}
 
 .recents {
   margin-top: 24px;

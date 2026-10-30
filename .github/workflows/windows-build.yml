@@ -3,7 +3,7 @@ name: Windows build
 # Builds the Windows installer (x64 NSIS, latest.yml) on a GitHub-hosted
 # Windows runner from the public source, and records where it came from as a
 # build provenance attestation that anyone can check with
-# `gh attestation verify <file> --repo pblsketch/openoffice` (decision 0056).
+# `gh attestation verify <file> --repo charleskang/openoffice` (decision 0056).
 # The installer stays unsigned, as the hand build is: a signed release would
 # lock every later update to that signer (docs/releasing.ko.md, 4).
 # No repository secret is involved.
@@ -104,21 +104,22 @@ jobs:
           set -euo pipefail
           dir="apps/shell/release/win-unpacked"
           for bin in \
-            "$dir/IeumOffice.exe" \
+            "$dir/OfficeMax.exe" \
             "$dir/resources/native/xlsx-sidecar.exe" \
+            "$dir/resources/latex/tectonic.exe" \
             "$dir/resources/ocr/win-ocr.exe" \
             "$dir/resources/cli/genoffice.cjs" \
             "$dir/resources/cli/ieumoffice.cmd"; do
             test -f "$bin" || { echo "missing: $bin"; exit 1; }
           done
           version=$(node -p "require('./apps/shell/package.json').version")
-          installer="apps/shell/release/IeumOffice-Setup-$version.exe"
+          installer="apps/shell/release/OfficeMax-Setup-$version.exe"
           feed="apps/shell/release/latest.yml"
           test -f "$installer" || { echo "missing: $installer"; exit 1; }
           test -f "$feed" || { echo "missing: $feed"; exit 1; }
           built=$(sed -n 's/^version: *//p' "$feed" | tr -d "'\"")
           [ "$built" = "$version" ] || { echo "latest.yml says $built, package.json $version"; exit 1; }
-          grep -q "^path: IeumOffice-Setup-$version.exe$" "$feed" || { echo "latest.yml path does not name the installer"; exit 1; }
+          grep -q "^path: OfficeMax-Setup-$version.exe$" "$feed" || { echo "latest.yml path does not name the installer"; exit 1; }
           # an accidentally signed release would lock later updates to that signer
           status=$(powershell -NoProfile -Command "(Get-AuthenticodeSignature '$installer').Status")
           [ "$(echo "$status" | tr -d '\r')" = "NotSigned" ] || { echo "the installer is signed ($status)"; exit 1; }
@@ -128,7 +129,7 @@ jobs:
       - name: Smoke test the packaged app
         run: |
           set -euo pipefail
-          exe="apps/shell/release/win-unpacked/IeumOffice.exe"
+          exe="apps/shell/release/win-unpacked/OfficeMax.exe"
           work="$RUNNER_TEMP/smoke"
           mkdir -p "$work"
           printf '# Smoke test\n\nHello from the Windows build.\n' > "$work/note.md"
@@ -147,16 +148,16 @@ jobs:
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
-            apps/shell/release/IeumOffice-Setup-*.exe
+            apps/shell/release/OfficeMax-Setup-*.exe
             apps/shell/release/latest.yml
 
       - name: Upload the release files
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ieumoffice-windows-x64
+          name: officemax-windows-x64
           path: |
-            apps/shell/release/IeumOffice-Setup-*.exe
-            apps/shell/release/IeumOffice-Setup-*.exe.blockmap
+            apps/shell/release/OfficeMax-Setup-*.exe
+            apps/shell/release/OfficeMax-Setup-*.exe.blockmap
             apps/shell/release/latest.yml
           if-no-files-found: error
           retention-days: 14
@@ -179,10 +180,10 @@ jobs:
       - name: Attach to the release
         run: |
           set -euo pipefail
-          gh run download "$GITHUB_RUN_ID" --name ieumoffice-windows-x64 --dir windows
+          gh run download "$GITHUB_RUN_ID" --name officemax-windows-x64 --dir windows
           [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "not a version tag: $TAG"; exit 1; }
           gh release view "$TAG" >/dev/null || { echo "no release $TAG: publish it first"; exit 1; }
           built=$(sed -n 's/^version: *//p' windows/latest.yml | tr -d "'\"")
           [ "v$built" = "$TAG" ] || { echo "built $built, but the release is $TAG"; exit 1; }
-          gh release upload "$TAG" windows/IeumOffice-Setup-*.exe windows/IeumOffice-Setup-*.exe.blockmap windows/latest.yml --clobber
+          gh release upload "$TAG" windows/OfficeMax-Setup-*.exe windows/OfficeMax-Setup-*.exe.blockmap windows/latest.yml --clobber
           gh release view "$TAG" --json assets --jq '.assets[].name'

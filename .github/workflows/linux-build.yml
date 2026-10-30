@@ -86,20 +86,20 @@ jobs:
           set -euo pipefail
           dir="apps/shell/release/linux-unpacked"
           for bin in \
-            "$dir/ieumoffice" \
+            "$dir/officemax" \
             "$dir/resources/native/xlsx-sidecar" \
             "$dir/resources/cli/ieumoffice"; do
             test -x "$bin" || { echo "missing or not executable: $bin"; exit 1; }
           done
-          compgen -G "apps/shell/release/IeumOffice-*.AppImage" >/dev/null
-          compgen -G "apps/shell/release/ieumoffice_*_amd64.deb" >/dev/null
-          compgen -G "apps/shell/release/ieumoffice-*.x86_64.rpm" >/dev/null
+          compgen -G "apps/shell/release/OfficeMax-*.AppImage" >/dev/null
+          compgen -G "apps/shell/release/officemax_*_amd64.deb" >/dev/null
+          compgen -G "apps/shell/release/officemax-*.x86_64.rpm" >/dev/null
           test -f "apps/shell/release/latest-linux.yml"
           # Ubuntu 24.04 renamed part of electron-builder's default deb
           # dependencies in the 64-bit time_t transition, so the control file
           # must carry "plain | t64" alternatives (electron-builder.cjs
           # deb.depends); an rpm/dnf install carries no such renames.
-          depends="$(dpkg-deb -f apps/shell/release/ieumoffice_*_amd64.deb Depends)"
+          depends="$(dpkg-deb -f apps/shell/release/officemax_*_amd64.deb Depends)"
           for name in libgtk-3-0 libnotify4 libxtst6 libatspi2.0-0 libsecret-1-0; do
             grep -Eq "$name[[:space:]]*\|[[:space:]]*$name"t64 <<<"$depends" || {
               echo "deb Depends is missing the t64 alternative for $name: $depends"
@@ -115,7 +115,7 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm -v "$PWD/apps/shell/release:/pkg:ro" ubuntu:24.04 \
-            bash -c 'set -o pipefail; apt-get update -qq && apt-get -s install /pkg/ieumoffice_*_amd64.deb | tail -n 5'
+            bash -c 'set -o pipefail; apt-get update -qq && apt-get -s install /pkg/officemax_*_amd64.deb | tail -n 5'
 
       # Newer Ubuntu kernels ship an AppArmor policy that blocks unprivileged
       # user namespaces, which kills the Chromium zygote even with --no-sandbox
@@ -132,7 +132,7 @@ jobs:
       - name: Smoke test the packaged app
         run: |
           set -euo pipefail
-          exe="apps/shell/release/linux-unpacked/ieumoffice"
+          exe="apps/shell/release/linux-unpacked/officemax"
           work="$RUNNER_TEMP/smoke"
           mkdir -p "$work"
           printf '# Smoke test\n\nHello from the Linux build.\n' > "$work/note.md"
@@ -148,7 +148,7 @@ jobs:
       - name: Upload the release files
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ieumoffice-linux-x64
+          name: officemax-linux-x64
           path: |
             apps/shell/release/*.AppImage
             apps/shell/release/*.deb
@@ -175,7 +175,7 @@ jobs:
       - name: Attach to the release
         run: |
           set -euo pipefail
-          gh run download "$GITHUB_RUN_ID" --name ieumoffice-linux-x64 --dir linux
+          gh run download "$GITHUB_RUN_ID" --name officemax-linux-x64 --dir linux
           [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "not a version tag: $TAG"; exit 1; }
           gh release view "$TAG" >/dev/null || { echo "no release $TAG: publish it first"; exit 1; }
           feed=$(ls linux/*-linux.yml)

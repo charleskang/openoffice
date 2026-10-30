@@ -1583,4 +1583,9 @@ export const fr = {
   appVisualFlipV: 'Retourner verticalement',
   appVisualFlipH: 'Retourner horizontalement',
   appCtxPasteVisual: "Coller l'image ou la forme",
+  appEmbeddedChartHint:
+    'Données du graphique de {name}. Enregistrez pour actualiser le graphique, puis enregistrez la présentation.',
+  appEmbeddedChartReturn: 'Revenir aux diapositives',
+  appEmbeddedChartSaveError:
+    'Impossible d’actualiser le graphique. La présentation ou la plage a peut-être changé. Conservez les données avec Enregistrer sous, puis rouvrez l’éditeur.',
 } satisfies Record<keyof typeof zh, string>

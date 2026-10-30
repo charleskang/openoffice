@@ -109,7 +109,7 @@ describe('installCliLink', () => {
 
   it('owns only launchers shipped with the app, not any path ending in /cli/genoffice (genoffice#895)', () => {
     const dir = tempDir()
-    const launcher = join(dir, 'IeumOffice.app', 'Contents', 'Resources', 'cli', 'ieumoffice')
+    const launcher = join(dir, 'OfficeMax.app', 'Contents', 'Resources', 'cli', 'ieumoffice')
     mkdirSync(join(launcher, '..'), { recursive: true })
     writeFileSync(launcher, '#!/bin/sh\n')
     writeFileSync(join(launcher, '..', 'genoffice.cjs'), '')
@@ -139,7 +139,7 @@ describe('installCliLink', () => {
     )
     expect(readlinkSync(join(dead, 'ieumoffice'))).toBe(launcher)
 
-    const older = join(dir, 'opt', 'IeumOffice', 'resources', 'cli', 'ieumoffice')
+    const older = join(dir, 'opt', 'OfficeMax', 'resources', 'cli', 'ieumoffice')
     mkdirSync(join(older, '..'), { recursive: true })
     writeFileSync(older, '#!/bin/sh\n')
     writeFileSync(join(older, '..', 'genoffice.cjs'), '')
@@ -153,7 +153,7 @@ describe('installCliLink', () => {
     expect(readlinkSync(join(upgraded, 'ieumoffice'))).toBe(launcher)
 
     const alias = join(dir, 'Applications')
-    symlinkSync(join(dir, 'IeumOffice.app'), alias, 'dir')
+    symlinkSync(join(dir, 'OfficeMax.app'), alias, 'dir')
     const viaAlias = join(alias, 'Contents', 'Resources', 'cli', 'ieumoffice')
     expect(isOurLauncher(viaAlias, launcher)).toBe(true)
     const relative = join(dir, 'relative-bin')
@@ -259,8 +259,8 @@ describe('installCliLink', () => {
       return { ok: true, stdout: scripts.length === 1 ? 'linked\n' : 'present\n' }
     }
     const launcher =
-      "C:\\Users\\O'Brien\\AppData\\Local\\Programs\\IeumOffice\\resources\\ieumoffice\\ieumoffice.cmd"
-    const dir = "C:\\Users\\O'Brien\\AppData\\Local\\Programs\\IeumOffice\\resources\\ieumoffice"
+      "C:\\Users\\O'Brien\\AppData\\Local\\Programs\\OfficeMax\\resources\\ieumoffice\\ieumoffice.cmd"
+    const dir = "C:\\Users\\O'Brien\\AppData\\Local\\Programs\\OfficeMax\\resources\\ieumoffice"
     const first = installCliLink({ launcher, platform: 'win32', runPowerShell: run })
     expect(first).toEqual({ status: 'linked', location: dir })
     expect(scripts[0]).toContain("$dir = 'C:\\Users\\O''Brien\\AppData")
@@ -282,14 +282,14 @@ describe('installCliLink', () => {
 
   it('inspects the Windows PATH read-only', () => {
     const scripts: string[] = []
-    const launcher = 'C:\\IeumOffice\\resources\\ieumoffice\\ieumoffice.cmd'
+    const launcher = 'C:\\OfficeMax\\resources\\ieumoffice\\ieumoffice.cmd'
     const present = inspectCliLink({
       launcher,
       platform: 'win32',
       runPowerShell: (s) => (scripts.push(s), { ok: true, stdout: 'present\n' }),
     })
     expect(present.status).toBe('present')
-    expect(present.location).toBe('C:\\IeumOffice\\resources\\ieumoffice')
+    expect(present.location).toBe('C:\\OfficeMax\\resources\\ieumoffice')
     expect(scripts[0]).not.toContain('SetValue')
     const missing = inspectCliLink({
       launcher,

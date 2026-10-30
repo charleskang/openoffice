@@ -7,6 +7,8 @@ export const hi = {
   tabHome: 'होम',
   tabView: 'दृश्य',
   save: 'सहेजें',
+  exportPdf: 'PDF के रूप में निर्यात…',
+  pdfFailed: 'दस्तावेज़ को PDF के रूप में निर्यात नहीं किया जा सका।',
   saveAs: 'इस रूप में सहेजें…',
   saving: 'सहेजा जा रहा है…',
   saved: 'सहेजा गया',

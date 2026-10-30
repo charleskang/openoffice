@@ -1,5 +1,5 @@
 #!/bin/sh
-# ieumoffice launcher. Inside a packaged IeumOffice it runs the bundled CLI on the
+# ieumoffice launcher. Inside a packaged OfficeMax it runs the bundled CLI on the
 # app's own Node runtime (ELECTRON_RUN_AS_NODE); in a dev checkout it falls
 # back to the system node and the local build output. Usually reached through
 # a symlink on the PATH, so the real location is resolved first.
@@ -18,10 +18,10 @@ if [ -n "$GENOFFICE_NODE" ]; then
 fi
 
 case "$here" in
-  */Contents/Resources/cli) app="$here/../../MacOS/IeumOffice" ;;
+  */Contents/Resources/cli) app="$here/../../MacOS/OfficeMax" ;;
   */resources/cli)
     # Linux install, or the Windows install reached from Git Bash / MSYS
-    if [ -x "$here/../../IeumOffice.exe" ]; then app="$here/../../IeumOffice.exe"; else app="$here/../../ieumoffice"; fi
+    if [ -x "$here/../../OfficeMax.exe" ]; then app="$here/../../OfficeMax.exe"; else app="$here/../../officemax"; fi
     ;;
   *) app="" ;;
 esac

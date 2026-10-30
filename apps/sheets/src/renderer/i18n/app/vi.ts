@@ -1504,4 +1504,9 @@ export const vi = {
   appVisualFlipV: 'Lật dọc',
   appVisualFlipH: 'Lật ngang',
   appCtxPasteVisual: 'Dán ảnh hoặc hình',
+  appEmbeddedChartHint:
+    'Dữ liệu biểu đồ của {name}. Lưu để cập nhật biểu đồ, sau đó lưu bản trình bày.',
+  appEmbeddedChartReturn: 'Quay lại trang chiếu',
+  appEmbeddedChartSaveError:
+    'Không thể cập nhật biểu đồ. Bản trình bày hoặc phạm vi dữ liệu có thể đã thay đổi. Giữ dữ liệu bằng Lưu thành, rồi mở lại trình sửa dữ liệu.',
 } satisfies Record<keyof typeof zh, string>

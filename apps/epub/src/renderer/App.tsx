@@ -48,6 +48,7 @@ import {
   type BookSearchHit,
 } from './reader/book-search'
 import { buildChapterHtml } from './reader/chapter-html'
+import { bookChapterPrintHtml } from './reader/book-print-html'
 import {
   applyViewCss,
   blockElement,
@@ -729,6 +730,29 @@ export default function App(): React.JSX.Element {
   const commandRef = useRef(runCommand)
   commandRef.current = runCommand
 
+  const exportingPdfRef = useRef(false)
+  const exportPdf = useCallback(async () => {
+    const open = phaseRef.current
+    if (open.kind !== 'open' || exportingPdfRef.current) return
+    exportingPdfRef.current = true
+    try {
+      await editor.flush()
+      const chapters: string[] = []
+      for (let i = 0; i < open.book.spine.length; i++) {
+        const chapter = await api.readChapter(i)
+        if (!chapter.ok) throw new Error('Chapter ' + (i + 1) + ' could not be read.')
+        chapters.push(bookChapterPrintHtml(chapter, epubAssetUrl(open.assetBase, chapter.path)))
+      }
+      const result = await api.exportPdf(chapters)
+      if (!result.ok) throw new Error(result.error)
+    } catch (error) {
+      flashRef.current({ key: 'pdfFailed' })
+      console.error('[epub] PDF export:', error)
+    } finally {
+      exportingPdfRef.current = false
+    }
+  }, [api, editor])
+
   const onMenuCommand = useCallback(
     (command: EpubMenuCommand) => {
       switch (command) {
@@ -747,6 +771,9 @@ export default function App(): React.JSX.Element {
         case 'zoom-reset':
           updatePrefs({ fontScale: 1 })
           break
+        case 'export-pdf':
+          void exportPdf()
+          break
         case 'translate-book':
           openTranslation()
           break
@@ -754,7 +781,7 @@ export default function App(): React.JSX.Element {
           break
       }
     },
-    [runCommand, updatePrefs, openTranslation],
+    [runCommand, updatePrefs, openTranslation, exportPdf],
   )
   const menuCommandRef = useRef(onMenuCommand)
   menuCommandRef.current = onMenuCommand
@@ -975,6 +1002,7 @@ export default function App(): React.JSX.Element {
         }
         onSave={() => void save('save')}
         onSaveAs={() => void save('saveAs')}
+        onExportPdf={() => void exportPdf()}
         onFind={() => (side === 'search' ? setSide(null) : openSearch())}
         onFontScale={(fontScale) => updatePrefs({ fontScale })}
         onFontStep={(dir) => updatePrefs({ fontScale: stepFontScale(prefs.fontScale, dir) })}

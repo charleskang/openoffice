@@ -263,4 +263,6 @@ export const ms = {
   appStatusSummaryZoomInserted: 'Slaid Zum Ringkasan disisipkan dengan {count} jubin',
   appSectionSummary: 'Seksyen Ringkasan',
   appSectionN: 'Seksyen {n}',
+  appChartWorkbookOpenError:
+    'Data carta tidak dapat dibuka. Pastikan carta mempunyai hamparan terbenam.',
 } satisfies Record<keyof typeof zh, string>

@@ -522,6 +522,7 @@ export interface ChartRenderNode extends RenderNodeBase {
     y2: number
     color: string
     widthPx: number
+    dash?: number[]
   }>
   /** Tick / category / legend / axis-title text */
   labels: ChartLabel[]

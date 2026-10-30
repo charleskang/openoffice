@@ -46,8 +46,8 @@ function gensparkEraFile() {
 
 describe('normalizeAiSettings', () => {
   it('names the new defaults', () => {
-    expect(DEFAULT_AI_PROVIDER_SELECTION).toBe('auto')
-    expect(DEFAULT_AI_IMAGE_PROVIDER).toBe('codex')
+    expect(DEFAULT_AI_PROVIDER_SELECTION).toBe('openai')
+    expect(DEFAULT_AI_IMAGE_PROVIDER).toBe('none')
     expect(DEFAULT_AI_ANALYSIS_PROVIDER).toBe('chat')
     expect(DEFAULT_AI_VIDEO_ANALYSIS_PROVIDER).toBe('none')
     expect(DEFAULT_AI_SEARCH_PROVIDER).toBe('parallel')
@@ -55,8 +55,8 @@ describe('normalizeAiSettings', () => {
 
   it('replaces every Genspark selection with its default', () => {
     const settings = normalizeAiSettings(gensparkEraFile())
-    expect(settings.provider).toBe('auto')
-    expect(settings.media?.imageProvider).toBe('codex')
+    expect(settings.provider).toBe('openai')
+    expect(settings.media?.imageProvider).toBe('none')
     expect(settings.media?.analysisProvider).toBe('chat')
     expect(settings.media?.videoAnalysisProvider).toBe('none')
     expect(settings.search?.provider).toBe('parallel')
@@ -135,8 +135,8 @@ describe('normalizeAiSettings', () => {
       },
       search: { ...file.search, provider: 'vendor-from-the-future' },
     })
-    expect(settings.provider).toBe('auto')
-    expect(settings.media?.imageProvider).toBe('codex')
+    expect(settings.provider).toBe('openai')
+    expect(settings.media?.imageProvider).toBe('none')
     expect(settings.media?.analysisProvider).toBe('chat')
     expect(settings.media?.videoAnalysisProvider).toBe('none')
     expect(settings.search?.provider).toBe('parallel')
@@ -153,7 +153,7 @@ describe('normalizeAiSettings', () => {
         videoAnalysisProvider: 'chat',
       },
     })
-    expect(settings.media?.imageProvider).toBe('codex')
+    expect(settings.media?.imageProvider).toBe('none')
     expect(settings.media?.analysisProvider).toBe('chat')
     expect(settings.media?.videoAnalysisProvider).toBe('none')
   })
@@ -204,8 +204,8 @@ describe('normalizeAiSettings', () => {
     ]
     for (const stored of garbage) {
       const settings = normalizeAiSettings(stored)
-      expect(settings.provider).toBe('auto')
-      expect(settings.media?.imageProvider).toBe('codex')
+      expect(settings.provider).toBe('openai')
+      expect(settings.media?.imageProvider).toBe('none')
       expect(settings.search?.provider).toBe('parallel')
       expect(settings.providers.codex).toBeDefined()
     }
@@ -216,14 +216,14 @@ describe('normalizeAiSettings', () => {
     expect(normalizeAiSettings(JSON.parse(JSON.stringify(once)))).toEqual(once)
   })
 
-  it('a normalized Genspark-era file selects a ready subscription', () => {
+  it('a normalized legacy file keeps the OpenAI preference despite a ready subscription', () => {
     const settings = normalizeAiSettings(gensparkEraFile())
     const ready = { provider: 'codex', state: 'ready', meteredAccepted: false } as const
     // Claude's check answered too: `auto` decides nothing while it is still out
     const out = { provider: 'claude-code', state: 'signed-out', meteredAccepted: false } as const
     expect(selectAiProvider(settings, { 'claude-code': out, codex: ready })).toEqual({
       connected: true,
-      provider: 'codex',
+      provider: 'openai',
       metered: false,
     })
   })
@@ -278,12 +278,12 @@ describe('normalizeAiSettings', () => {
       readUrl: 'github_pat_test',
     })
     expect(settings.providers.openai).toMatchObject({ apiKey: 'sk-kept', model: 'gpt-4o' })
-    expect(settings.provider).toBe('auto')
+    expect(settings.provider).toBe('openai')
   })
 
   it('still migrates the pre-provider single-endpoint shape into custom', () => {
     const settings = normalizeAiSettings({ apiKey: 'sk-old', model: 'gpt-4o', baseUrl: '' })
     expect(settings.providers.custom).toMatchObject({ apiKey: 'sk-old', model: 'gpt-4o' })
-    expect(settings.provider).toBe('auto')
+    expect(settings.provider).toBe('openai')
   })
 })

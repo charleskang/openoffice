@@ -17,7 +17,7 @@ export const DROP_OPEN_CHANNEL = 'app:open-dropped-files'
 /** Extensions routed by apps/shell routeDocumentPath — keep in sync there and
  *  with OPEN_DIALOG_EXTENSIONS / OPEN_LOCAL_EXTENSIONS on the home screen. */
 export const OPENABLE_DOC_RE =
-  /\.(docx|odt|xlsx|xlsm|xls|csv|tsv|pptx|pdf|md|markdown|html|htm|xmind|hwp|hwpx|epub)$/i
+  /\.(docx|odt|xlsx|xlsm|xls|csv|tsv|pptx|pdf|md|markdown|txt|json|tex|ltx|bib|sty|cls|bst|zip|html|htm|xmind|hwp|hwpx|epub)$/i
 
 /** Recognized-but-unsupported formats: kept in the sent payload so the shell
  *  can show its "not supported" dialog instead of dropping them silently.
@@ -71,7 +71,7 @@ export function droppableFilePaths(
 /**
  * Sanitize + classify a raw IPC payload: strings only, trimmed, deduped,
  * capped, then split into directly-openable paths and known-unsupported
- * extensions (unique, first-seen order). Anything unrecognized (.png, .zip,
+ * extensions (unique, first-seen order). Anything unrecognized (.png,
  * nonexistent junk from a hostile sender) falls out silently.
  */
 export function partitionDropPayload(raw: unknown): {

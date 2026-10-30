@@ -30,6 +30,7 @@ function statusMap(
 
 const settings = (patch: Partial<AiSettings> = {}): AiSettings => ({
   ...defaultAiSettings(),
+  provider: 'auto',
   ...patch,
 })
 

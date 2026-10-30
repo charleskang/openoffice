@@ -148,7 +148,20 @@ export function buildChartNode(
   media?: MediaResolver,
 ): ChartRenderNode | null {
   const node = buildChartNodeTitled(id, sourceId, model, box, vp, metrics, media)
-  if (node && model.fontFamily) for (const l of node.labels) l.fontFamily ??= model.fontFamily
+  if (node) {
+    for (const label of node.labels) {
+      const font: RunStyle = {
+        fontFamily: label.fontFamily ?? chartFont(model),
+        fontSizePx: label.fontSizePx,
+        bold: !!label.bold,
+        italic: !!label.italic,
+      }
+      // Draw with the same installed substitute used when measuring chart text.
+      const family = metrics.displayFamily?.(font, label.text) ?? font.fontFamily
+      if (label.fontFamily || model.fontFamily || family !== font.fontFamily)
+        label.fontFamily = family
+    }
+  }
   return node
 }
 
@@ -175,7 +188,7 @@ function buildChartNodeTitled(
   const titleSpcPx = model.titleSpcPt ? ptToPx(model.titleSpcPt, vp.scale) : 0
   const measureTitle = (t: string) =>
     metrics.measure(t, {
-      fontFamily: chartFont(model),
+      fontFamily: model.titleFontFamily ?? chartFont(model),
       fontSizePx: titleSizePx,
       bold: titleBold,
       italic: !!model.titleItalic,
@@ -189,13 +202,14 @@ function buildChartNodeTitled(
   const titleH = titleSizePx * (0.5 + 1.17 * titleLines.length) - 1
   // A manual plot layout already positions the plot in full-frame fractions (title space
   // included), so the content must not shrink or shift — but only the cartesian builder
-  // consumes plotLayout; pie/scatter/radar still lay out from the (shrunk) frame
+  // consumes plotLayout; radar still lays out from the (shrunk) frame
   const manual =
     (!!model.plotLayout &&
       (model.kind === 'line' ||
         model.kind === 'area' ||
         model.kind === 'bar' ||
-        model.kind === 'pie')) ||
+        model.kind === 'pie' ||
+        model.kind === 'scatter')) ||
     // <c:overlay val="1"/>: the title floats over the plot without reserving space
     !!model.titleOverlay
   // The legend's auto "top" slot still sits below the title when the frame is not shrunk
@@ -216,8 +230,21 @@ function buildChartNodeTitled(
   titleLines.forEach((line, i) => {
     node.labels.push({
       text: line,
-      x: Math.max((box.w - measureTitle(line)) / 2, 4),
-      y: titleSizePx * 0.55 + i * titleSizePx * 1.17,
+      x: chartTextPosition(
+        model.titleLayout?.x,
+        model.titleLayout?.xMode,
+        Math.max((box.w - measureTitle(line)) / 2, 4),
+        box.w,
+      ),
+      y:
+        chartTextPosition(
+          model.titleLayout?.y,
+          model.titleLayout?.yMode,
+          titleSizePx * 0.55,
+          box.h,
+        ) +
+        i * titleSizePx * 1.17,
+      ...(model.titleFontFamily ? { fontFamily: model.titleFontFamily } : {}),
       fontSizePx: titleSizePx,
       color:
         model.titleColor ?? model.defaultTextColor ?? (model.hasStylePart ? '#333333' : '#000000'),
@@ -376,7 +403,8 @@ function buildChartNodeInner(
   titleTopPx = 0,
 ): ChartRenderNode | null {
   if (model.kind === 'pie') return buildPieNode(id, sourceId, model, box, vp, metrics, titleTopPx)
-  if (model.kind === 'scatter') return buildScatterNode(id, sourceId, model, box, vp, metrics)
+  if (model.kind === 'scatter')
+    return buildScatterNode(id, sourceId, model, box, vp, metrics, titleTopPx)
   if (model.kind === 'radar') return buildRadarNode(id, sourceId, model, box, vp, metrics)
   if (model.kind === 'funnel') return buildFunnelNode(id, sourceId, model, box, vp, metrics)
   if (model.kind === 'sunburst') return buildSunburstNode(id, sourceId, model, box, vp, metrics)
@@ -537,6 +565,7 @@ function buildChartNodeInner(
         model.valAxis?.min,
         model.valAxis?.max,
         logBase,
+        model.valAxis?.majorUnit,
       )
     : ppTicks(
         model.valAxis?.min ?? dataMin,
@@ -3076,6 +3105,7 @@ function buildScatterNode(
   box: PlacedBox,
   vp: Viewport,
   metrics: FontMetricsProvider,
+  titleTopPx = 0,
 ): ChartRenderNode | null {
   const node = emptyChartNode(id, sourceId, box)
   const labelSizePx = ptToPx(model.valAxis?.labelSizePt ?? chartTextPt(model), vp.scale)
@@ -3091,6 +3121,8 @@ function buildScatterNode(
     italic: false,
   })
   const measure = (text: string, sizePx: number) => metrics.measure(text, style(sizePx))
+  const fmtTick = (value: number, code: string | undefined) =>
+    code ? fmtDataLabel(value, code) : fmtNum(value)
   const palette = chartPalette(model)
   const seriesColor = (i: number) =>
     model.series[i]?.color ?? palette[(model.series[i]?.paletteIdx ?? i) % palette.length]!
@@ -3099,7 +3131,15 @@ function buildScatterNode(
   const points = model.series.map((s) =>
     s.values
       .map((y, i) => ({ x: s.xValues?.[i] ?? i + 1, y, i }))
-      .filter((p): p is { x: number; y: number; i: number } => p.x != null && p.y != null),
+      .filter(
+        (p): p is { x: number; y: number; i: number } =>
+          p.x != null &&
+          p.y != null &&
+          Number.isFinite(p.x) &&
+          Number.isFinite(p.y) &&
+          (!model.catAxis?.logBase || p.x > 0) &&
+          (!model.valAxis?.logBase || p.y > 0),
+      ),
   )
   const allX = points.flat().map((p) => p.x)
   const allY = points.flat().map((p) => p.y)
@@ -3118,47 +3158,95 @@ function buildScatterNode(
   const yPad = bubblePad(yMin, yMax)
 
   // The catAxis slot = the x axis (the engine dispatched by axPos)
-  const xTicksR = ppTicks(
-    model.catAxis?.min ?? xMin - (xMin < 0 ? xPad : 0),
-    model.catAxis?.max ?? xMax + xPad,
-    model.catAxis?.min == null,
-    model.catAxis?.max == null,
-    true,
-  )
-  const yTicksR = ppTicks(
-    model.valAxis?.min ?? yMin - (yMin < 0 ? yPad : 0),
-    model.valAxis?.max ?? yMax + yPad,
-    model.valAxis?.min == null,
-    model.valAxis?.max == null,
-    true,
-  )
+  const xTicksR = model.catAxis?.logBase
+    ? logTicks(
+        xMin,
+        xMax,
+        model.catAxis.min,
+        model.catAxis.max,
+        model.catAxis.logBase,
+        model.catAxis.majorUnit,
+      )
+    : ppTicks(
+        model.catAxis?.min ?? xMin - (xMin < 0 ? xPad : 0),
+        model.catAxis?.max ?? xMax + xPad,
+        model.catAxis?.min == null,
+        model.catAxis?.max == null,
+        true,
+      )
+  const yTicksR = model.valAxis?.logBase
+    ? logTicks(
+        yMin,
+        yMax,
+        model.valAxis.min,
+        model.valAxis.max,
+        model.valAxis.logBase,
+        model.valAxis.majorUnit,
+      )
+    : ppTicks(
+        model.valAxis?.min ?? yMin - (yMin < 0 ? yPad : 0),
+        model.valAxis?.max ?? yMax + yPad,
+        model.valAxis?.min == null,
+        model.valAxis?.max == null,
+        true,
+      )
 
   const pad = Math.max(4, box.w * 0.01)
   const legendPos = model.legendPos
-  const legendH = legendPos === 't' || legendPos === 'b' ? labelSizePx * 1.6 : 0
-  const yLabelW = arrayMax(
-    yTicksR.ticks.map((t) => measure(fmtNum(t), labelSizePx)),
-    0,
-  )
-  const plotX = pad + yLabelW + 10
+  const legendSizePx = ptToPx(model.legendPt ?? chartTextPt(model), vp.scale)
+  const legendH = legendPos === 't' || legendPos === 'b' ? legendSizePx * 1.6 : 0
+  const legendW =
+    legendPos === 'l' || legendPos === 'r'
+      ? arrayMax(
+          model.series.map((ser) => measure(ser.name ?? '', legendSizePx)),
+          0,
+        ) +
+        legendSizePx * 2.5 +
+        12
+      : 0
+  const yLabelW = yLabelsOff
+    ? 0
+    : arrayMax(
+        yTicksR.ticks.map((t) => measure(fmtTick(t, model.valAxis?.numFmt), labelSizePx)),
+        0,
+      )
+  const xTitleSize = ptToPx(model.catAxis?.titleSizePt ?? chartTextPt(model), vp.scale)
+  const yTitleSize = ptToPx(model.valAxis?.titleSizePt ?? chartTextPt(model), vp.scale)
+  const plotX =
+    pad +
+    yLabelW +
+    10 +
+    (model.valAxis?.title ? yTitleSize * 1.4 : 0) +
+    (legendPos === 'l' ? legendW : 0)
   const plotY = pad + (legendPos === 't' ? legendH + 4 : 0) + labelSizePx * 0.6
-  const plotR = box.w - pad - labelSizePx * 0.7
-  const plotB = box.h - pad - labelSizePx * 1.5 - (legendPos === 'b' ? legendH : 0)
-  const plot = {
-    x: plotX,
-    y: plotY,
-    w: Math.max(plotR - plotX, 10),
-    h: Math.max(plotB - plotY, 10),
+  const plotR = box.w - pad - labelSizePx * 0.7 - (legendPos === 'r' ? legendW : 0)
+  const plotB =
+    box.h -
+    pad -
+    (xLabelsOff ? 0 : labelSizePx * 1.5) -
+    (legendPos === 'b' ? legendH : 0) -
+    (model.catAxis?.title ? xTitleSize * 1.5 : 0)
+  const L = model.plotLayout
+  const plot = L
+    ? { x: L.x * box.w, y: L.y * box.h, w: Math.max(L.w * box.w, 10), h: Math.max(L.h * box.h, 10) }
+    : { x: plotX, y: plotY, w: Math.max(plotR - plotX, 10), h: Math.max(plotB - plotY, 10) }
+  const fraction = (v: number, range: { min: number; max: number }, log: number | undefined) =>
+    log
+      ? (Math.log(v) - Math.log(range.min)) / (Math.log(range.max) - Math.log(range.min) || 1)
+      : (v - range.min) / (range.max - range.min || 1)
+  const xOf = (v: number) => {
+    const t = fraction(v, xTicksR, model.catAxis?.logBase)
+    return plot.x + plot.w * (model.catAxis?.reversed ? 1 - t : t)
   }
-
-  const xOf = (v: number) =>
-    plot.x + plot.w * ((v - xTicksR.min) / (xTicksR.max - xTicksR.min || 1))
-  const yOf = (v: number) =>
-    plot.y + plot.h * (1 - (v - yTicksR.min) / (yTicksR.max - yTicksR.min || 1))
+  const yOf = (v: number) => {
+    const t = fraction(v, yTicksR, model.valAxis?.logBase)
+    return plot.y + plot.h * (model.valAxis?.reversed ? t : 1 - t)
+  }
 
   // Grid + ticks: y (horizontal grid) follows valAxis, x (vertical grid) follows the catAxis slot
   const yGrid = model.valAxis?.gridColor
   yTicksR.ticks.forEach((t) => {
+    if (model.valAxis?.logBase && t <= 0) return
     const y = yOf(t)
     if (yGrid && t !== yTicksR.min) {
       node.gridLines.push({
@@ -3171,7 +3259,7 @@ function buildScatterNode(
       })
     }
     if (yLabelsOff) return
-    const text = fmtNum(t)
+    const text = fmtTick(t, model.valAxis?.numFmt)
     node.labels.push({
       text,
       x: plot.x - 6 - measure(text, labelSizePx),
@@ -3182,6 +3270,7 @@ function buildScatterNode(
   })
   const xGrid = model.catAxis?.gridColor
   xTicksR.ticks.forEach((t) => {
+    if (model.catAxis?.logBase && t <= 0) return
     const x = xOf(t)
     if (xGrid && t !== xTicksR.min) {
       node.gridLines.push({
@@ -3194,7 +3283,7 @@ function buildScatterNode(
       })
     }
     if (xLabelsOff) return
-    const text = fmtNum(t)
+    const text = fmtTick(t, model.catAxis?.numFmt)
     node.labels.push({
       text,
       x: x - measure(text, labelSizePx) / 2,
@@ -3203,26 +3292,88 @@ function buildScatterNode(
       color: model.catAxis?.labelColor ?? labelColor,
     })
   })
-  const axisColor = model.valAxis?.lineColor ?? model.catAxis?.lineColor ?? '#888888'
-  const axisW = Math.max(1, ptToPx(1, vp.scale))
+  const axisStroke = (axis: ChartModel['catAxis']) => {
+    const widthPx = Math.max(0.5, ptToPx((axis?.lineWidthEmu ?? 12700) / 12700, vp.scale))
+    return { widthPx, ...(axis?.lineDash ? { dash: dashArray(axis.lineDash, widthPx) } : {}) }
+  }
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
+  const xAxisY = yOf(
+    model.valAxis?.crosses === 'max'
+      ? yTicksR.max
+      : model.valAxis?.crosses === 'min'
+        ? yTicksR.min
+        : clamp(0, yTicksR.min, yTicksR.max),
+  )
+  const yAxisX = xOf(
+    model.catAxis?.crosses === 'max'
+      ? xTicksR.max
+      : model.catAxis?.crosses === 'min'
+        ? xTicksR.min
+        : clamp(0, xTicksR.min, xTicksR.max),
+  )
   if (!model.catAxis?.lineHidden)
     node.axisLines.push({
       x1: plot.x,
-      y1: plot.y + plot.h,
+      y1: xAxisY,
       x2: plot.x + plot.w,
-      y2: plot.y + plot.h,
-      color: axisColor,
-      widthPx: axisW,
+      y2: xAxisY,
+      color: model.catAxis?.lineColor ?? '#888888',
+      ...axisStroke(model.catAxis),
     })
   if (!model.valAxis?.lineHidden)
     node.axisLines.push({
-      x1: plot.x,
+      x1: yAxisX,
       y1: plot.y,
-      x2: plot.x,
+      x2: yAxisX,
       y2: plot.y + plot.h,
-      color: axisColor,
-      widthPx: axisW,
+      color: model.valAxis?.lineColor ?? '#888888',
+      ...axisStroke(model.valAxis),
     })
+  if (model.catAxis?.title) {
+    const a = model.catAxis
+    const width = metrics.measure(a.title!, {
+      ...style(xTitleSize),
+      bold: !!a.titleBold,
+      italic: !!a.titleItalic,
+    })
+    node.labels.push({
+      text: a.title!,
+      x: chartTextPosition(
+        a.titleLayout?.x,
+        a.titleLayout?.xMode,
+        plot.x + (plot.w - width) / 2,
+        box.w,
+      ),
+      y: chartTextPosition(
+        a.titleLayout?.y,
+        a.titleLayout?.yMode,
+        box.h - pad - xTitleSize * 1.2 - (legendPos === 'b' ? legendH : 0),
+        box.h,
+      ),
+      fontSizePx: xTitleSize,
+      color: a.titleColor ?? labelColor,
+      bold: !!a.titleBold,
+      italic: !!a.titleItalic,
+    })
+  }
+  if (model.valAxis?.title) {
+    const a = model.valAxis
+    const width = metrics.measure(a.title!, {
+      ...style(yTitleSize),
+      bold: !!a.titleBold,
+      italic: !!a.titleItalic,
+    })
+    node.labels.push({
+      text: a.title!,
+      x: pad + (legendPos === 'l' ? legendW : 0),
+      y: plot.y + (plot.h + width) / 2,
+      rotationDeg: -90,
+      fontSizePx: yTitleSize,
+      color: a.titleColor ?? labelColor,
+      bold: !!a.titleBold,
+      italic: !!a.titleItalic,
+    })
+  }
 
   // Series: scatterStyle decides the line/marker defaults; an explicit series marker overrides
   const st = model.scatterStyle ?? 'lineMarker'
@@ -3294,13 +3445,58 @@ function buildScatterNode(
       node.polylines.push({
         points: flat,
         color,
-        widthPx: lineW,
+        widthPx: ser.lineWidthPt != null ? Math.max(0.5, ptToPx(ser.lineWidthPt, vp.scale)) : lineW,
         ...(smooth || ser.smooth ? { smooth: true } : {}),
       })
     }
   })
 
-  addSeriesLegend(node, model, box, plot, labelSizePx, measure, pad, seriesColor)
+  if (legendPos && model.series.some((ser) => ser.name)) {
+    const order = model.legendOrder ?? model.series.map((_, i) => i)
+    const keyW = hasLine ? legendSizePx * 2.25 : legendSizePx * 0.5
+    const itemWidths = order.map(
+      (i) => keyW + 4 + measure(model.series[i]?.name ?? '', legendSizePx),
+    )
+    const rowH = legendSizePx * 1.8
+    const vertical = legendPos === 'l' || legendPos === 'r'
+    const width = vertical
+      ? arrayMax(itemWidths, 0)
+      : itemWidths.reduce((sum, w) => sum + w + legendSizePx * 0.5, 0)
+    const height = vertical ? rowH * order.length : rowH
+    const autoX =
+      legendPos === 'l' ? pad : legendPos === 'r' ? box.w - pad - width : (box.w - width) / 2
+    const autoY = vertical
+      ? (box.h + titleTopPx - height) / 2
+      : legendPos === 't'
+        ? pad + titleTopPx
+        : box.h - pad - height
+    const x0 = chartTextPosition(model.legendLayout?.x, model.legendLayout?.xMode, autoX, box.w)
+    const y0 = chartTextPosition(model.legendLayout?.y, model.legendLayout?.yMode, autoY, box.h)
+    let x = x0
+    order.forEach((si, i) => {
+      const ser = model.series[si]!
+      const y = y0 + (vertical ? i * rowH : 0)
+      const cy = y + legendSizePx * 0.6
+      const color = seriesColor(si)
+      if (hasLine)
+        node.polylines.push({
+          points: [x, cy, x + keyW, cy],
+          color,
+          widthPx: ser.lineWidthPt != null ? ptToPx(ser.lineWidthPt, vp.scale) : lineW,
+        })
+      else node.swatches.push({ x, y: cy - keyW / 2, w: keyW, h: keyW, color })
+      if (ser.marker ?? defaultMarker)
+        node.markers.push({ x: x + keyW / 2, y: cy, r: legendSizePx * 0.16, color })
+      node.labels.push({
+        text: ser.name ?? '',
+        x: x + keyW + 4,
+        y,
+        fontSizePx: legendSizePx,
+        color: model.legendColor ?? labelColor,
+      })
+      if (!vertical) x += itemWidths[i]! + legendSizePx * 0.5
+    })
+  }
   return node
 }
 
@@ -3776,6 +3972,7 @@ export function logTicks(
   explicitMin: number | undefined,
   explicitMax: number | undefined,
   base: number,
+  majorUnit?: number,
 ): { min: number; max: number; ticks: number[] } {
   // log(1000)/log(10) = 2.999…: snap exponents with slack so exact powers stay put
   const lg = (v: number) => Math.log(v) / Math.log(base)
@@ -3795,13 +3992,21 @@ export function logTicks(
       : base ** Math.ceil(lg(Math.max(dataMax, lo * base)) - 1e-9)
   if (!Number.isFinite(hi) || hi <= lo) hi = Math.min(lo * base, Number.MAX_VALUE)
   if (!Number.isFinite(hi)) hi = Number.MAX_VALUE
+  // On a logarithmic axis PowerPoint treats majorUnit as a multiplicative
+  // interval (10, 100, 1000...), independently of the scale's logBase.
+  const tickBase = majorUnit && Number.isFinite(majorUnit) && majorUnit > 1 ? majorUnit : base
+  const tickLog = (v: number) => Math.log(v) / Math.log(tickBase)
   const ticks: number[] = []
-  if (Math.abs(lg(lo) - Math.round(lg(lo))) > 1e-9) ticks.push(lo)
+  if (Math.abs(tickLog(lo) - Math.round(tickLog(lo))) > 1e-9) ticks.push(lo)
   // hi * (1 + 1e-9) itself overflows to Infinity when hi is MAX_VALUE, and
   // "base ** e <= Infinity" is always true — clamp the comparison bound too.
   const cap = Math.min(hi * (1 + 1e-9), Number.MAX_VALUE)
-  for (let e = Math.ceil(lg(lo) - 1e-9); base ** e <= cap && ticks.length < MAX_LOG_TICKS; e++) {
-    const v = base ** e
+  for (
+    let e = Math.ceil(tickLog(lo) - 1e-9);
+    tickBase ** e <= cap && ticks.length < MAX_LOG_TICKS;
+    e++
+  ) {
+    const v = tickBase ** e
     // Past MAX_VALUE — and rounding (v * 1e12) would overflow too — the axis
     // ends at the last representable tick.
     if (!Number.isFinite(v)) break
@@ -3933,4 +4138,14 @@ function fmtNum(v: number): string {
   if (v === 0) return '0' // -0 from float tick accumulation would print "-0"
   if (Number.isInteger(v)) return v.toLocaleString('en-US')
   return String(v)
+}
+
+/** Edge coordinates are absolute frame fractions; factor coordinates offset the auto position. */
+function chartTextPosition(
+  value: number | undefined,
+  mode: 'edge' | 'factor' | undefined,
+  automatic: number,
+  span: number,
+): number {
+  return value == null ? automatic : (mode === 'edge' ? 0 : automatic) + value * span
 }

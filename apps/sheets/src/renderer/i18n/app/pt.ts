@@ -1557,4 +1557,9 @@ export const pt = {
   appVisualFlipV: 'Inverter verticalmente',
   appVisualFlipH: 'Inverter horizontalmente',
   appCtxPasteVisual: 'Colar imagem ou forma',
+  appEmbeddedChartHint:
+    'Dados do gráfico de {name}. Salve para atualizar o gráfico e depois salve a apresentação.',
+  appEmbeddedChartReturn: 'Voltar aos slides',
+  appEmbeddedChartSaveError:
+    'Não foi possível atualizar o gráfico. A apresentação ou o intervalo pode ter mudado. Preserve os dados com Salvar como e reabra o editor.',
 } satisfies Record<keyof typeof zh, string>

@@ -1513,4 +1513,9 @@ export const hi = {
   appVisualFlipV: 'लंबवत पलटें',
   appVisualFlipH: 'क्षैतिज पलटें',
   appCtxPasteVisual: 'चित्र या आकृति पेस्ट करें',
+  appEmbeddedChartHint:
+    '{name} का चार्ट डेटा। चार्ट अपडेट करने के लिए सहेजें, फिर प्रस्तुति भी सहेजें।',
+  appEmbeddedChartReturn: 'स्लाइड पर वापस जाएँ',
+  appEmbeddedChartSaveError:
+    'चार्ट अपडेट नहीं हो सका। प्रस्तुति या डेटा सीमा बदल गई हो सकती है। इस रूप में सहेजें से डेटा सुरक्षित करें, फिर डेटा संपादक दोबारा खोलें।',
 } satisfies Record<keyof typeof zh, string>

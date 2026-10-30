@@ -7,6 +7,8 @@ export const ms = {
   tabHome: 'Laman Utama',
   tabView: 'Paparan',
   save: 'Simpan',
+  exportPdf: 'Eksport sebagai PDF…',
+  pdfFailed: 'Dokumen tidak dapat dieksport sebagai PDF.',
   saveAs: 'Simpan Sebagai…',
   saving: 'Menyimpan…',
   saved: 'Disimpan',

@@ -7,6 +7,8 @@ export const th = {
   tabHome: 'หน้าแรก',
   tabView: 'มุมมอง',
   save: 'บันทึก',
+  exportPdf: 'ส่งออกเป็น PDF…',
+  pdfFailed: 'ไม่สามารถส่งออกเอกสารเป็น PDF ได้',
   saveAs: 'บันทึกเป็น…',
   saving: 'กำลังบันทึก…',
   saved: 'บันทึกแล้ว',

@@ -267,4 +267,6 @@ export const fr = {
   appStatusSummaryZoomInserted: 'Diapositive de zoom de synthèse insérée avec {count} vignettes',
   appSectionSummary: 'Section de synthèse',
   appSectionN: 'Section {n}',
+  appChartWorkbookOpenError:
+    'Impossible d’ouvrir les données du graphique. Vérifiez qu’un classeur est intégré.',
 } satisfies Record<keyof typeof zh, string>

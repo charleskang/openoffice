@@ -118,6 +118,17 @@ describe('listFolder', () => {
     ).toEqual(['data.json', 'notes.md', 'notes.txt'])
   })
 
+  it('lists LaTeX source files and excludes their backups', () => {
+    touch('main.tex')
+    touch('appendix.LTX')
+    touch('main.tex.bak')
+    expect(
+      listFolder(root, new Set())
+        .files.map((file) => file.name)
+        .sort(),
+    ).toEqual(['appendix.LTX', 'main.tex'])
+  })
+
   // the same list decides what the file-search index scans
   it('lists mind map files', () => {
     touch('plan.xmind')

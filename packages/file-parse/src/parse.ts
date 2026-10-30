@@ -37,6 +37,8 @@ const TEXT_EXTS = new Set([
   'txt',
   'md',
   'markdown',
+  'tex',
+  'ltx',
   'csv',
   'tsv',
   'json',

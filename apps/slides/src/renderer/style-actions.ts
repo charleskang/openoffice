@@ -356,6 +356,12 @@ export async function onEditChart(
 /** Open the chart data edit dialog */
 export async function openChartDataDialog(ctx: ActionCtx): Promise<void> {
   if (!ctx.selectedNode || ctx.selectedNode.type !== 'chart') return
+  try {
+    if (await window.slidesApi.openChartWorkbook(ctx.current, ctx.selectedNode.sourceId)) return
+  } catch {
+    ctx.setStatus(t('appChartWorkbookOpenError'))
+    return
+  }
   const data = await window.slidesApi.getChartData(ctx.current, ctx.selectedNode.sourceId)
   if (data) {
     ctx.setChartDataDialogInit(data)

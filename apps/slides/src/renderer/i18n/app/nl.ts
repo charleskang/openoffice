@@ -269,4 +269,6 @@ export const nl = {
   appStatusSummaryZoomInserted: 'Samenvattingszoomdia ingevoegd met {count} tegels',
   appSectionSummary: 'Samenvattingssectie',
   appSectionN: 'Sectie {n}',
+  appChartWorkbookOpenError:
+    'De grafiekgegevens konden niet worden geopend. Controleer of een spreadsheet is ingesloten.',
 } satisfies Record<keyof typeof zh, string>

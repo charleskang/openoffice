@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import { collectPrintCss, snapshotPrintVisuals } from '../src/renderer/print-visuals'
+import {
+  collectPrintCss,
+  settleVisualNodes,
+  snapshotPrintVisuals,
+} from '../src/renderer/print-visuals'
 import type { InstalledVisualFrame } from '../src/renderer/WorkbookVisuals'
 import type { WorkbookVisualObject } from '../src/shared/desktop-api'
 
@@ -79,5 +83,38 @@ describe('snapshotPrintVisuals', () => {
   it('returns nothing (and no css) when no visual is in the document', () => {
     mount('.xlsx-chart { color: black; }', '<p>no floats</p>')
     expect(snapshotPrintVisuals(document, [frame('v1')])).toEqual({ visuals: [], css: '' })
+  })
+})
+
+describe('settleVisualNodes', () => {
+  it('waits for a loading placeholder and undecoded image on a newly activated sheet', async () => {
+    vi.useFakeTimers()
+    const rect = vi
+      .spyOn(Element.prototype, 'getBoundingClientRect')
+      .mockReturnValue({ width: 100 } as DOMRect)
+    try {
+      mount('', '<div data-print-visual="v1"><div class="xlsx-visual-loading">Loading</div></div>')
+      let settled = false
+      const pending = settleVisualNodes(document, [frame('v1')]).then(() => {
+        settled = true
+      })
+      await vi.advanceTimersByTimeAsync(120)
+      expect(settled).toBe(false)
+      const image = document.createElement('img')
+      Object.defineProperty(image, 'complete', { configurable: true, value: false })
+      Object.defineProperty(image, 'naturalWidth', { configurable: true, value: 0 })
+      document.querySelector('[data-print-visual="v1"]')!.replaceChildren(image)
+      await vi.advanceTimersByTimeAsync(120)
+      expect(settled).toBe(false)
+      Object.defineProperty(image, 'complete', { value: true })
+      Object.defineProperty(image, 'naturalWidth', { value: 80 })
+      await vi.advanceTimersByTimeAsync(60)
+      await pending
+      expect(settled).toBe(true)
+      expect(snapshotPrintVisuals(document, [frame('v1')]).visuals[0]!.html).toContain('<img')
+    } finally {
+      rect.mockRestore()
+      vi.useRealTimers()
+    }
   })
 })

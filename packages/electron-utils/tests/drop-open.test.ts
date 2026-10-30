@@ -75,6 +75,20 @@ beforeEach(() => {
   resetInstallFlag()
 })
 
+it('routes a ZIP project, LaTeX source and bibliography through the normal open pipeline', () => {
+  expect(
+    partitionDropPayload([
+      '/work/paper.ZIP',
+      '/work/main.tex',
+      '/work/refs.bib',
+      '/work/figure.png',
+    ]),
+  ).toEqual({
+    supported: ['/work/paper.ZIP', '/work/main.tex', '/work/refs.bib'],
+    unsupportedExts: [],
+  })
+})
+
 describe('droppableFilePaths', () => {
   const resolveByName =
     (map: Record<string, string>) =>

@@ -43,7 +43,7 @@ function status(
 }
 
 function settingsWith(patch: Partial<AiSettings> = {}): AiSettings {
-  return { ...defaultAiSettings(), ...patch }
+  return { ...defaultAiSettings(), provider: 'auto', ...patch }
 }
 
 function withOpenAiKey(settings: AiSettings): AiSettings {
@@ -312,7 +312,7 @@ describe('a change saved at once', () => {
     legacy.search = { ...legacy.search!, provider: 'retired-provider' as never }
     const file = stubSettingsFile({ ...legacy, retiredSwitch: false } as AiSettings)
     await changeAiSettings((current) => ({ ...current, subscriptionNoticeSeen: true }))
-    expect(file.stored).toMatchObject({ provider: 'auto', subscriptionNoticeSeen: true })
+    expect(file.stored).toMatchObject({ provider: 'openai', subscriptionNoticeSeen: true })
     expect(file.stored!.search?.provider).toBe('parallel')
     expect('retiredSwitch' in file.stored!).toBe(false)
   })

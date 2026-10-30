@@ -7,6 +7,8 @@ export const zhTW = {
   tabHome: '常用',
   tabView: '檢視',
   save: '儲存',
+  exportPdf: '匯出為 PDF…',
+  pdfFailed: '無法匯出為 PDF。',
   saveAs: '另存新檔…',
   saving: '正在儲存…',
   saved: '已儲存',

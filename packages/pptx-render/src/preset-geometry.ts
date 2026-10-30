@@ -1272,23 +1272,33 @@ export function presetPath(
       return { path: b.Z().d() }
     }
     case 'uturnArrow': {
-      const t = ss * frac('adj1', 25000)
-      const hw = 0.75 * t
-      const hl = t
-      const xrc = w - hw
-      const rxO = (xrc + t / 2) / 2
-      const ryO = Math.min(h / 2, rxO)
-      const b = new PathB().M(0, h).L(0, ryO)
-      b.arc(rxO, ryO, rxO, ryO, 180, 180)
-      const yh = h - hl
-      b.L(xrc + t / 2, yh)
-        .L(xrc + hw, yh)
-        .L(xrc, h)
-        .L(xrc - hw, yh)
-        .L(xrc - t / 2, yh)
-        .L(xrc - t / 2, ryO)
-      b.arc(rxO, ryO, Math.max(rxO - t, 0), Math.max(ryO - t, ryO * 0.2), 0, -180)
-      b.L(t, h).Z()
+      // ECMA-376 guides keep the corner radius, shaft, head width and reach independent.
+      const pin = (value: number, low: number, high: number) => Math.max(low, Math.min(high, value))
+      const a2 = pin(adjust?.adj2 ?? 25000, 0, 25000)
+      const a1 = pin(adjust?.adj1 ?? 25000, 0, 2 * a2)
+      const a3 = pin(adjust?.adj3 ?? 25000, 0, (100000 * h) / ss - a1)
+      const a5 = pin(adjust?.adj5 ?? 75000, ((a3 + a1) * ss) / h, 100000)
+      const th = (ss * a1) / 100000
+      const headHalf = (ss * a2) / 100000
+      const y5 = (h * a5) / 100000
+      const y4 = y5 - (ss * a3) / 100000
+      const x9 = w - headHalf + th / 2
+      const radius =
+        (ss * pin(adjust?.adj4 ?? 43750, 0, (Math.min(x9 / 2, y4) * 100000) / ss)) / 100000
+      const innerRadius = Math.max(radius - th, 0)
+      const x3 = th + innerRadius
+      const x8 = w - headHalf
+      const x6 = w - 2 * headHalf
+      const x7 = w - headHalf - th / 2
+      const x4 = x9 - radius
+      const x5 = x7 - innerRadius
+      const b = new PathB().M(0, h).L(0, radius)
+      b.arc(radius, radius, radius, radius, 180, 90)
+      b.L(x4, 0).arc(x4, radius, radius, radius, 270, 90)
+      b.L(x9, y4).L(w, y4).L(x8, y5).L(x6, y4).L(x7, y4).L(x7, x3)
+      b.arc(x5, x3, innerRadius, innerRadius, 0, -90)
+      b.L(x3, th).arc(x3, x3, innerRadius, innerRadius, 270, -90)
+      b.L(th, h).Z()
       return { path: b.d() }
     }
     case 'curvedDownArrow':

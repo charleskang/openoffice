@@ -238,6 +238,7 @@ function ToolSymbol({ symbol }: { readonly symbol: string }): React.JSX.Element 
 }
 
 interface ExcelShellProps {
+  readonly embeddedChartNotice?: ReactNode
   readonly openingWorkbook: boolean
   /** F5 presentation: the grid alone, custom chrome hidden */
   readonly presenting: boolean
@@ -552,6 +553,7 @@ export function ExcelShell({
   onCommand,
   onIsCellEditing,
   openingWorkbook,
+  embeddedChartNotice,
   statusMessage,
   emptyCsvNotice,
   onOpenWorkbook,
@@ -996,10 +998,18 @@ export function ExcelShell({
           aiOpen={aiDock.open}
           onAiToggle={() => setIsCopilotOpen((open) => !open)}
         />
+        {embeddedChartNotice}
       </header>
 
       {/* AI panel docks on the left, full height under the ribbon (unified with docs) */}
-      <div className="sheet-body">
+      <div
+        className="sheet-body"
+        // AiChatPanel renders no element when both the panel and rail are
+        // hidden. Remove its grid column too, on either docking side.
+        style={{
+          gridTemplateColumns: !aiDock.open && !aiSidebarEnabled ? 'minmax(0, 1fr)' : undefined,
+        }}
+      >
         <AiChatPanel
           isOpen={aiDock.open}
           hideRail={!aiSidebarEnabled}

@@ -265,4 +265,6 @@ export const es = {
   appStatusSummaryZoomInserted: 'Diapositiva de zoom de resumen insertada con {count} mosaicos',
   appSectionSummary: 'Sección de resumen',
   appSectionN: 'Sección {n}',
+  appChartWorkbookOpenError:
+    'No se pudieron abrir los datos del gráfico. Compruebe que contiene una hoja de cálculo incrustada.',
 } satisfies Record<keyof typeof zh, string>

@@ -1,3 +1,11 @@
+# OfficeMax
+
+Personal OfficeMax development fork, based on [IeumOffice](https://github.com/pblsketch/openoffice). The original introduction and license notices remain below. Windows and macOS build configurations are retained. The CLI command and MCP name remain ieumoffice for compatibility.
+
+This development fork defaults to the OpenAI GPT API. Save your API key and model at the top of Settings → AI. Requests remain blocked without a key and never fall back to a Claude or Codex subscription. OpenAI bills API usage separately. Image generation stays off until configured separately.
+
+---
+
 # IeumOffice
 
 [한국어](README.md) · **English**
@@ -62,6 +70,10 @@ The author's own account, in Korean, is at
 [이음오피스를 만든 이유](https://ieumoffice.com/story).
 
 ## What works today
+
+- **Task-focused home**: resume recent work, open working folders and starred files, and use compact document shortcuts.
+- **LaTeX source and ZIP projects**: open, edit and save UTF-8 .tex and .ltx files as source. Expand the document format catalogue and choose **Open LaTeX / ZIP**, File > Open, or drop a ZIP to import a project. Choose a parent folder and the app creates a fresh working copy, preserves its structure and detects the main document. Multiple candidates require a choice. The original ZIP and existing working copies remain intact. The project pane lists sources, bibliography, figures, support files, section headings and unresolved file references. Edit `.bib`, `.sty`, `.cls` and `.bst` as source; child files still preview through the selected main document. The current file's live buffer is compiled in a temporary project copy; save changes in other tabs first. View source and PDF side by side, with optional automatic refresh, page navigation, zoom and clickable error lines. Tectonic 0.17.0 compiles without overwriting originals. Run npm run latex:install for development; Windows and Mac packaging prepares the matching engines. The first compile may download TeX support files into the per-user cache. ZIP imports allow 64 MB compressed, 256 MB extracted and 5,000 entries; encrypted entries, links and paths escaping the project are rejected. Structure is indexed from literal LaTeX commands without executing them, so macro-generated file names may not be resolved automatically.
+- **LaTeX AI error repair**: after a failed compile, choose **Fix errors with AI → Get GPT proposal**. The current source, compiler diagnostics and project filenames go to the configured OpenAI API. Review before/after fragments, then apply an undoable edit and rebuild the PDF. Only the current file can change; problems in another file are explained. Changed source, ambiguous fragments, overlapping edits and incomplete replies cannot be applied. Saving follows existing autosave settings. Missing OpenAI credentials lead to settings, with no provider fallback. The source limit is 120,000 characters. API charges may apply.
 
 - **Editors in one tabbed window**: Word (`.docx`), Excel (`.xlsx`),
   PowerPoint (`.pptx`), PDF, Hangul (`.hwp`, `.hwpx`), Markdown, HTML and mind

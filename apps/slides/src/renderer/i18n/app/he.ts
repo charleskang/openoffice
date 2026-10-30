@@ -247,4 +247,5 @@ export const he = {
   appStatusSummaryZoomInserted: 'הוזנה שקופית זום סיכום עם {count} אריחים',
   appSectionSummary: 'מקטע סיכום',
   appSectionN: 'מקטע {n}',
+  appChartWorkbookOpenError: 'לא ניתן לפתוח את נתוני התרשים. יש לבדוק שקיים גיליון אלקטרוני מוטבע.',
 } satisfies Record<keyof typeof zh, string>

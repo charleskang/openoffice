@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AiSubscriptionState, SubscriptionStatusMap } from '@genoffice/ai-provider/browser'
 import { LANGS } from '@genoffice/i18n'
 import { aiSubscriptionText } from '@genoffice/ui'
+import { openAiText } from '../src/renderer/src/i18n/strings-openai'
 import { Onboarding } from '../src/renderer/src/Onboarding'
 import { LocaleProvider } from '../src/renderer/src/locale'
 import {
@@ -139,7 +140,7 @@ describe('Onboarding', () => {
     renderOnboarding()
     const step = host.querySelector<HTMLElement>('.onb-slide[data-step="welcome"]')!
     expect(step.querySelector('.onb-subtitle')!.textContent).toBe(strings.en.onbWelcomeSubtitle)
-    expect(step.querySelector('.onb-body')!.textContent).toBe(strings.en.onbWelcomeBody)
+    expect(step.querySelector('.onb-body')!.textContent).toBe(openAiText('en', 'setupHint'))
     // no superlative of its own
     expect(step.textContent).not.toMatch(/\b(first|best|leading|most|only)\b|AI-native/i)
     expect(strings.en.onbWelcomeSubtitle).toBe('An open-source office suite')
@@ -181,107 +182,16 @@ describe('Onboarding', () => {
     expect(onDone).toHaveBeenCalledTimes(2)
   })
 
-  it('asks which AI the user has on the connect step, then walks that one path on the live status', async () => {
-    const connection = connectionOf(statuses('not-installed', 'signed-out'))
+  it('offers the GPT API form without requiring a subscription program', async () => {
+    const connection = connectionOf(statuses('not-installed', 'not-installed'))
     renderOnboarding({ connection })
     await click('.onb-next')
-
     const step = host.querySelector<HTMLElement>('.onb-slide[data-step="connect"]')!
-    const cards = () =>
-      Array.from(step.querySelectorAll<HTMLElement>('.ai-sub-card')).map((card) => [
-        card.dataset.provider,
-        card.dataset.state,
-      ])
-    expect(step.querySelector('.ai-sub-guide-question')!.textContent).toBe(
-      aiSubscriptionText('en', 'guideQuestion'),
-    )
-    expect(
-      Array.from(step.querySelectorAll<HTMLElement>('.ai-sub-guide-path')).map(
-        (el) => el.dataset.path,
-      ),
-    ).toEqual(['claude-code', 'codex', 'free'])
-    expect(cards()).toEqual([])
-    expect(step.querySelector('.ai-sub-codex')!.textContent).toBe(
-      aiSubscriptionText('en', 'codexNotice'),
-    )
-
-    await click('.onb-slide[data-step="connect"] [data-path="claude-code"]')
-    expect(cards()).toEqual([['claude-code', 'not-installed']])
-    await click(
-      '.onb-slide[data-step="connect"] [data-provider="claude-code"] [data-action="install"]',
-    )
-    expect(connection.install).toHaveBeenCalledWith('claude-code')
-    await click('.onb-slide[data-step="connect"] [data-action="guide-back"]')
-    await click('.onb-slide[data-step="connect"] [data-path="codex"]')
-    expect(cards()).toEqual([['codex', 'signed-out']])
-    await click('.onb-slide[data-step="connect"] [data-provider="codex"] [data-action="login"]')
-    expect(connection.login).toHaveBeenCalledWith('codex')
-  })
-
-  it('says a launch could not start, under the card of that path', async () => {
-    renderOnboarding({
-      connection: connectionOf(statuses('not-installed', 'signed-out'), {
-        failed: { codex: 'login' },
-      }),
-    })
-    await click('.onb-next')
-    expect(host.querySelector('.onb-connect-failed')).toBeNull()
-    await click('.onb-slide[data-step="connect"] [data-path="codex"]')
-    const failed = host.querySelector<HTMLElement>('.onb-connect-failed')!
-    expect(failed.dataset.provider).toBe('codex')
-    expect(failed.textContent).toBe(strings.en.setSubLoginFailed)
-  })
-
-  it('names the connected subscription on the last step', async () => {
-    renderOnboarding({ connection: connectionOf(statuses('ready', 'signed-out')) })
-    await click('.onb-next')
-    await click('.onb-next')
-    expect(host.querySelector('.onb-slide.active .onb-subtitle')!.textContent).toBe(
-      'AI is connected: Claude.',
-    )
-  })
-
-  it('offers the free connections on the connect step and names a made one on the last step', async () => {
-    const connectFreeAi = vi.fn(async () => ({
-      ok: true as const,
-      provider: 'gemini' as const,
-      model: 'm',
-    }))
-    vi.stubGlobal('aiOffice', {
-      getAiSettings: async () => ({
-        providers: {
-          openrouter: { apiKey: 'sk-or-v1-x', model: 'nvidia/nemotron-3-super-120b-a12b:free' },
-        },
-      }),
-      onAiSettingsChanged: () => () => {},
-      getFreeAiQuota: async () => ({ used: 9, limit: 50, remaining: 41 }),
-      connectFreeAi,
-    })
-    try {
-      renderOnboarding()
-      await click('.onb-next')
-      const step = host.querySelector('.onb-slide.active')!
-      // a free connection already made opens the free path by itself
-      expect(step.querySelector('.ai-sub-guide-open')!.getAttribute('data-path')).toBe('free')
-      // the free cards say what free use means themselves: no line of the guide repeats it
-      expect(step.querySelector('.ai-sub-guide-need')).toBeNull()
-      expect(
-        [...step.querySelectorAll<HTMLElement>('.free-ai-card')].map((el) => [
-          el.dataset.provider,
-          el.dataset.state,
-        ]),
-      ).toEqual([
-        ['openrouter', 'connected'],
-        ['gemini', 'idle'],
-      ])
-      expect(step.textContent).toContain('41 of 50 free requests left today')
-      await click('.onb-next')
-      expect(host.querySelector('.onb-slide.active .onb-subtitle')!.textContent).toBe(
-        'AI is connected: OpenRouter.',
-      )
-    } finally {
-      vi.unstubAllGlobals()
-    }
+    expect(step.querySelector('[data-testid="openai-setup"]')).not.toBeNull()
+    expect(step.querySelector('input[type="password"]')).not.toBeNull()
+    expect(step.querySelector('.ai-sub-card')).toBeNull()
+    expect(connection.install).not.toHaveBeenCalled()
+    expect(connection.login).not.toHaveBeenCalled()
   })
 
   it('keeps the first-connection notice for the connect step and reports its acknowledgement', async () => {
@@ -334,7 +244,7 @@ describe('welcome copy', () => {
       expect(onbWelcomeBody.trim(), lang).not.toBe('')
       if (lang === 'en') continue
       expect(onbWelcomeSubtitle, lang).not.toBe(strings.en.onbWelcomeSubtitle)
-      expect(onbWelcomeBody, lang).not.toBe(strings.en.onbWelcomeBody)
+      expect(onbWelcomeBody, lang).not.toBe(openAiText('en', 'setupHint'))
     }
     expect(new Set(LANGS.map((lang) => strings[lang].onbWelcomeBody)).size).toBe(LANGS.length)
   })

@@ -26,7 +26,7 @@ import { effectivePageBreaks } from './page-break-preview'
 import { COLOR_SCHEMES, FONT_SCHEMES, rethemeStyles, THEME_PRESETS } from './themes'
 import { startFullLoad } from './full-load'
 import { fitsFullLoad, workbookCellCounts } from './load-budget'
-import { loadVisibleRange } from './univer-sync'
+import { ensureSheetFileState, loadVisibleRange } from './univer-sync'
 import {
   layoutSheetPrint,
   PrintError,
@@ -43,6 +43,7 @@ import {
 } from './print-settings'
 import { settleVisualNodes, snapshotPrintVisuals } from './print-visuals'
 import { installedVisualFrames, type InstalledVisualFrame } from './WorkbookVisuals'
+import { focusWorksheet } from './sheet-focus'
 import type { LazyWorkbookState, UniverRuntime } from './univer-state'
 
 const PAPER_NAMES: Record<string, string> = {
@@ -414,6 +415,7 @@ async function sheetPrintDocument(
 }
 
 export type PrintRange = 'active' | 'workbook' | 'selection'
+export type PdfExportRange = 'active' | 'workbook'
 
 export interface PrintJob {
   readonly documents: readonly SheetPrintDocument[]
@@ -435,7 +437,11 @@ export interface PrintPreviewHost {
   readonly marginsPreset: 'normal' | 'wide' | 'narrow' | 'custom'
   readonly hasSelection: boolean
   readonly sheetCount: number
-  buildJob(range: PrintRange, overrides: PageSetupJournalState): Promise<PrintJob>
+  buildJob(
+    range: PrintRange,
+    overrides: PageSetupJournalState,
+    captureAllVisuals?: boolean,
+  ): Promise<PrintJob>
   listPrinters(): Promise<PrinterInfo[]>
   /// Resolve with the status message to show.
   print(job: PrintJob, output: PrintOutputSettings): Promise<string>
@@ -501,23 +507,81 @@ export function createPrintPreviewHost(ctx: PageLayoutContext): PrintPreviewHost
     marginsPreset: journal.margins ?? (fileSetup?.margins === undefined ? 'normal' : 'custom'),
     hasSelection,
     sheetCount: printableSheets().length,
-    async buildJob(range, overrides) {
+    async buildJob(range, overrides, captureAllVisuals = false) {
       const now = new Date()
       const sheets = range === 'workbook' ? printableSheets() : [worksheet]
       const documents: SheetPrintDocument[] = []
-      for (const sheet of sheets) {
-        const isActive = sheet.getSheetId() === sheetId
-        documents.push(
-          await sheetPrintDocument(
-            ctx,
-            state,
-            sheet,
-            isActive ? overrides : {},
-            range === 'selection' ? selectionA1() : null,
-            now,
-            isActive,
-          ),
+      let activated: FWorksheet | null = null
+      const unchanged = () => {
+        const current = ctx.univerRef.current?.univerAPI.getActiveWorkbook()
+        const id = workbook.getId?.()
+        return (
+          ctx.lazyWorkbookRef.current === state &&
+          !!current &&
+          (id === undefined ? current === workbook : current.getId?.() === id)
         )
+      }
+      try {
+        for (const sheet of sheets) {
+          if (!unchanged()) throw new PrintError(t('appPdfExportFailed'))
+          if (
+            captureAllVisuals &&
+            state &&
+            !(await ensureSheetFileState(state, sheet.getSheetId(), ctx.lazyWorkbookRef))
+          )
+            throw new PrintError(t('appPdfExportFailed'))
+          const isActive = sheet.getSheetId() === sheetId
+          const hasVisuals =
+            captureAllVisuals &&
+            state &&
+            [...state.file.visuals, ...state.editJournal.visualAdds].some(
+              (visual) =>
+                visual.sheetId === sheet.getSheetId() &&
+                !state.editJournal.visualEdits.get(visual.id)?.remove,
+            )
+          const sourceSheet = state?.file.sheets.find((item) => item.id === sheet.getSheetId())
+          const areaEdit = state?.editJournal.pageSetup.get(sheet.getSheetId())?.printArea
+          const explicitArea = areaEdit === undefined ? sourceSheet?.printArea : areaEdit
+          if (
+            captureAllVisuals &&
+            range === 'workbook' &&
+            !hasVisuals &&
+            !explicitArea &&
+            sheet.getLastRow() <= 0 &&
+            sheet.getLastColumn() <= 0
+          ) {
+            const first = sheet.getRange(0, 0, 1, 1)
+            const value = first.getValues()[0]?.[0]
+            const formula = first.getFormulas?.()[0]?.[0]
+            if ((value === null || value === undefined || value === '') && !formula) continue
+          }
+          // Background charts have no installed DOM until their sheet is shown.
+          if (hasVisuals && workbook.getActiveSheet()?.getSheetId() !== sheet.getSheetId()) {
+            focusWorksheet(sheet, () => workbook.setActiveSheet(sheet))
+            activated = sheet
+          }
+          documents.push(
+            await sheetPrintDocument(
+              ctx,
+              state,
+              sheet,
+              isActive ? overrides : {},
+              range === 'selection' ? selectionA1() : null,
+              now,
+              isActive || Boolean(hasVisuals),
+            ),
+          )
+          if (!unchanged()) throw new PrintError(t('appPdfExportFailed'))
+        }
+      } finally {
+        if (
+          activated &&
+          unchanged() &&
+          workbook.getActiveSheet()?.getSheetId() === activated.getSheetId()
+        ) {
+          focusWorksheet(worksheet, () => workbook.setActiveSheet(worksheet))
+          ctx.requestVisualInstall?.()
+        }
       }
       const pageCount = documents.reduce((sum, document) => sum + document.pages.length, 0)
       if (pageCount === 0) throw new PrintError(t('appPrintNothing'))
@@ -641,13 +705,25 @@ async function activeSheetPrintPayload(
 /// the main process to render the PDF (hidden window + save dialog).
 /// `outPath` (headless export only) skips the dialog; resolves true when a
 /// PDF was written.
-export async function handleExportPdf(ctx: PageLayoutContext, outPath?: string): Promise<boolean> {
+export async function handleExportPdf(
+  ctx: PageLayoutContext,
+  outPath?: string,
+  range: PdfExportRange = 'active',
+): Promise<boolean> {
   try {
-    const payload = await activeSheetPrintPayload(ctx, {
-      notLoaded: t('appPdfNeedsFullLoad'),
-      preparing: t('appPdfRendering'),
-      failed: t('appPdfExportFailed'),
-    })
+    let payload: WorkbookExportPdfRequest | null
+    if (range === 'workbook') {
+      const host = await openPrintPreviewHost(ctx)
+      if (!host) return false
+      ctx.setMessage(t('appPdfRendering'))
+      const job = await host.buildJob('workbook', {}, true)
+      payload = printRequest(job.documents, job.fileName)
+    } else
+      payload = await activeSheetPrintPayload(ctx, {
+        notLoaded: t('appPdfNeedsFullLoad'),
+        preparing: t('appPdfRendering'),
+        failed: t('appPdfExportFailed'),
+      })
     if (!payload) return false
     const result = await window.desktopApi.exportPdf({
       ...payload,

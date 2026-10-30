@@ -32,12 +32,19 @@ function visualNode(doc: Document, id: string): HTMLElement | null {
 }
 
 function laidOut(doc: Document, id: string): boolean {
-  const child = visualNode(doc, id)?.firstElementChild
-  return child !== undefined && child !== null && child.getBoundingClientRect().width > 0
+  const node = visualNode(doc, id)
+  const child = node?.firstElementChild
+  if (!node || !child || child.getBoundingClientRect().width <= 0) return false
+  // A media-loading placeholder already has dimensions. Wait for the actual
+  // picture and its decoded pixels before cloning a newly activated sheet.
+  if (node.querySelector('.xlsx-visual-loading')) return false
+  return Array.from(node.querySelectorAll('img')).every(
+    (image) => image.complete && image.naturalWidth > 0,
+  )
 }
 
 /// Float DOM attaches a beat after install; wait for every frame's node to
-/// exist and lay out (charts that never paint, e.g. an empty figure, still
+/// exist, lay out and finish loading their media (empty figures still
 /// have their frame). Gives up quietly: a missing node prints nothing.
 export async function settleVisualNodes(
   doc: Document,

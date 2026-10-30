@@ -7,6 +7,8 @@ export const ar = {
   tabHome: 'الصفحة الرئيسية',
   tabView: 'عرض',
   save: 'حفظ',
+  exportPdf: 'تصدير بتنسيق PDF…',
+  pdfFailed: 'تعذّر تصدير المستند بتنسيق PDF.',
   saveAs: 'حفظ باسم…',
   saving: 'جارٍ الحفظ…',
   saved: 'تم الحفظ',

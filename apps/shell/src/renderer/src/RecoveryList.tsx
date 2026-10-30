@@ -5,6 +5,7 @@ import iconXlsx from './assets/file-xlsx.svg'
 import iconPptx from './assets/file-pptx.svg'
 import iconPdf from './assets/file-pdf.svg'
 import iconMd from './assets/file-md.svg'
+import iconTex from './assets/file-tex.svg'
 import iconHtml from './assets/file-html.svg'
 import iconMindmap from './assets/file-mindmap.svg'
 import iconHwp from './assets/file-hwp.svg'
@@ -159,7 +160,11 @@ export function RecoveryList({ items, onSubmit, busy = false }: RecoveryListProp
               >
                 <img
                   className="recovery-row-icon"
-                  src={KIND_ICONS[item.editorKind]}
+                  src={
+                    item.editorKind === 'markdown' && /\.(tex|ltx)$/i.test(item.name)
+                      ? iconTex
+                      : KIND_ICONS[item.editorKind]
+                  }
                   width={28}
                   height={28}
                   alt=""

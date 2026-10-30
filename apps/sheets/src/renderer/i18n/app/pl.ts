@@ -1541,4 +1541,9 @@ export const pl = {
   appVisualFlipV: 'Odbij w pionie',
   appVisualFlipH: 'Odbij w poziomie',
   appCtxPasteVisual: 'Wklej obraz lub kształt',
+  appEmbeddedChartHint:
+    'Dane wykresu dla {name}. Zapisz, aby zaktualizować wykres, a następnie zapisz prezentację.',
+  appEmbeddedChartReturn: 'Wróć do slajdów',
+  appEmbeddedChartSaveError:
+    'Nie można zaktualizować wykresu. Prezentacja lub zakres mogły się zmienić. Zachowaj dane przez Zapisz jako i otwórz edytor ponownie.',
 } satisfies Record<keyof typeof zh, string>

@@ -1421,4 +1421,8 @@ export const zhTW = {
   appVisualFlipV: '垂直翻轉',
   appVisualFlipH: '水平翻轉',
   appCtxPasteVisual: '貼上圖片/圖形',
+  appEmbeddedChartHint: '這是 {name} 的圖表資料。儲存以更新圖表，然後儲存簡報。',
+  appEmbeddedChartReturn: '返回投影片',
+  appEmbeddedChartSaveError:
+    '無法更新圖表。簡報或資料範圍可能已變更。請先另存新檔以保留資料，再重新開啟資料編輯器。',
 } satisfies Record<keyof typeof zh, string>

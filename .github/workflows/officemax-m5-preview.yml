@@ -1,0 +1,110 @@
+name: OfficeMax M5 preview
+
+on:
+  push:
+    branches: [build/officemax-m5-preview]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: officemax-m5-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      CSC_FOR_PULL_REQUEST: 'true'
+      GENOFFICE_MAC_X64: '0'
+      PREVIEW_VERSION: 0.13.4-mac-preview.1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Confirm Apple Silicon host
+        run: test "$(uname -m)" = arm64
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+        with:
+          workspaces: apps/sheets/native/xlsx-engine
+      - name: Install exact dependencies
+        run: npm ci
+      - name: Typecheck all modules
+        run: npm run typecheck
+      - name: Check added features
+        run: >-
+          node node_modules/vitest/vitest.mjs run
+          apps/shell/tests/workspace-start.test.ts
+          apps/shell/tests/openai-profile.test.ts
+          apps/shell/tests/latex-project-import.test.ts
+          apps/shell/tests/embedded-chart-workbooks.test.ts
+          apps/markdown/tests/latex-repair.test.ts
+          apps/markdown/tests/pdf-export.test.ts
+          apps/sheets/tests/workbook-pdf.test.ts
+          apps/sheets/tests/PdfExportDialog.test.ts
+          apps/sheets/tests/print-visuals.test.ts
+          apps/sheets/tests/print-fit-rounding.test.ts
+          apps/sheets/tests/embedded-chart-structure.test.ts
+          apps/sheets/tests/embedded-chart-formulas.test.ts
+          apps/slides/tests/math-font-fallback.test.ts
+          apps/slides/tests/embedded-chart-broadcast.test.ts
+          apps/epub/tests/book-print-html.test.ts
+          packages/pptx-engine/tests/chart-data-workbook.test.ts
+          packages/pptx-engine/tests/chart-workbook-structure.test.ts
+          packages/pptx-engine/tests/parse-formatted-breaks.test.ts
+          packages/pptx-engine/tests/table-equation-preview.test.ts
+          packages/pptx-render/tests/scatter-fidelity.test.ts
+          packages/pptx-render/tests/formatted-breaks.test.ts
+          packages/pptx-render/tests/chart-authored-layout.test.ts
+          packages/pptx-render/tests/table-preview-render.test.ts
+      - name: Build every editor and native engine
+        run: npm run build:all
+      - name: Package Apple Silicon preview without publishing
+        run: npm run dist:mac -w @genoffice/shell -- --publish never -c.extraMetadata.version="$PREVIEW_VERSION"
+      - name: Verify packaged app and engines
+        run: |
+          set -euo pipefail
+          app="apps/shell/release/mac-arm64/OfficeMax.app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          for bin in "$app/Contents/MacOS/OfficeMax" "$app/Contents/Resources/native/xlsx-sidecar" "$app/Contents/Resources/latex/tectonic" "$app/Contents/Resources/ocr/vision-ocr"; do
+            test -x "$bin"
+            lipo -archs "$bin" | grep -qw arm64
+          done
+          "$app/Contents/Resources/latex/tectonic" --version
+      - name: Test the packaged application
+        run: node tools/smoke-mac-preview.mjs apps/shell/release/mac-arm64/OfficeMax.app preview-checks
+      - name: Include source revision and checksums
+        run: |
+          set -euo pipefail
+          cp docs/officemax-mac-preview.ko.md apps/shell/release/INSTALL-MAC.ko.md
+          cp preview-checks/result.json apps/shell/release/SMOKE-RESULT.json
+          printf '%s\n' "$GITHUB_SHA" > apps/shell/release/SOURCE-COMMIT.txt
+          shasum -a 256 apps/shell/release/*.dmg apps/shell/release/*.zip > apps/shell/release/SHA256SUMS.txt
+      - name: Upload M5 trial
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: OfficeMax-M5-preview
+          path: |
+            apps/shell/release/*.dmg
+            apps/shell/release/*.zip
+            apps/shell/release/INSTALL-MAC.ko.md
+            apps/shell/release/SMOKE-RESULT.json
+            apps/shell/release/SOURCE-COMMIT.txt
+            apps/shell/release/SHA256SUMS.txt
+          retention-days: 30
+          if-no-files-found: error
+      - name: Upload diagnostic output
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: OfficeMax-M5-checks
+          path: preview-checks/
+          if-no-files-found: ignore

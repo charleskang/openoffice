@@ -72,7 +72,7 @@ import {
   type TxnResult,
   mapScriptOps,
 } from '@genoffice/pptx-ops'
-import { matchesElementRef } from '@genoffice/pptx-engine/identity'
+import { matchesElementRef, elementCNvPrId } from '@genoffice/pptx-engine/identity'
 import { buildPagePptx, parsePageSpec } from '@genoffice/pipelines/slides'
 import { sniffImageMime } from './media-mime'
 import {
@@ -105,6 +105,8 @@ import {
   type SlideBundle,
   listSlideLayouts,
   editChartElement,
+  getEmbeddedChartWorkbook,
+  prepareChartWorkbookUpdate,
   getChartElementData,
   materializeSlide,
   listMasterParts,
@@ -3527,12 +3529,76 @@ export function registerSlidesIpc(): void {
     return session ? chartColorSchemes(session.opened) : null
   })
 
+  ipcMain.handle('slides:open-chart-workbook', async (e, slideIndex: number, sourceId: string) => {
+    const session = sessions.get(e.sender.id)
+    if (!session || !Number.isInteger(slideIndex) || typeof sourceId !== 'string') return false
+    if (!runtime.openChartWorkbook) return false
+    let baseline = getEmbeddedChartWorkbook(session.opened, slideIndex, sourceId)
+    if (!baseline) return false
+    const slideId = slideDurableId(session.opened.deck.slides[slideIndex]!)
+    const element = session.opened.deck.slides[slideIndex]!.elements.find((el) =>
+      matchesElementRef(el, sourceId),
+    )!
+    const persistentRef = elementCNvPrId(element) ?? sourceId
+    await runtime.openChartWorkbook({
+      owner: e.sender,
+      key: baseline.workbookPath,
+      title: basename(session.path || session.firstSaveName || 'Presentation'),
+      bytes: baseline.workbook,
+      prepare: async (bytes, operations = []) => {
+        if (sessions.get(e.sender.id) !== session)
+          throw new Error('The presentation was closed or replaced.')
+        const update = await prepareChartWorkbookUpdate(
+          baseline!,
+          bytes,
+          operations,
+          session.opened,
+        )
+        return () => {
+          if (sessions.get(e.sender.id) !== session)
+            throw new Error('The presentation was closed or replaced.')
+          const index = session.opened.deck.slides.findIndex((s) => slideDurableId(s) === slideId)
+          if (index < 0) throw new Error('The chart slide was removed.')
+          const before = takeSnapshot(session)
+          const undoBefore = [...session.undoStack],
+            redoBefore = [...session.redoStack]
+          const logBefore = session.opLog ? [...session.opLog] : undefined,
+            seqBefore = session.opSeq
+          try {
+            const result = sessionTxn(session, {
+              ops: [
+                { op: 'setChartWorkbook', target: { slide: index, el: persistentRef }, update },
+              ],
+            })
+            if (!result) throw new Error('The chart changed. Close and reopen its data editor.')
+            markMetaDirty(session)
+            // A shared chart part can be used by more than one slide.
+            for (let i = 0; i < session.opened.deck.slides.length; i++)
+              rebuildSlideWithReparse(session, i)
+            baseline = getEmbeddedChartWorkbook(session.opened, index, persistentRef)
+            scheduleDeckBroadcast(session, true)
+          } catch (error) {
+            restoreSnapshot(session, before)
+            session.undoStack = undoBefore
+            session.redoStack = redoBefore
+            session.opLog = logBefore
+            session.opSeq = seqBefore
+            scheduleDeckBroadcast(session, true)
+            throw error
+          }
+        }
+      },
+    })
+    return true
+  })
+
   ipcMain.handle('slides:get-chart-data', (e, slideIndex: number, sourceId: string) => {
     const session = sessions.get(e.sender.id)
     if (!session) return null
     const slide = session.opened.deck.slides[slideIndex]
     if (!slide) return null
-    return getChartElementData(slide, sourceId)
+    const element = slide.elements.find((el) => matchesElementRef(el, sourceId))
+    return element ? getChartElementData(slide, element.id) : null
   })
 
   ipcMain.handle('slides:reorder-element', (e, op: ReorderElementOp) => {

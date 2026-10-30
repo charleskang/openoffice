@@ -31,6 +31,30 @@ const INSTALLER_OPEN_WITH_EXTS: ReadonlySet<string> = new Set([
 const installerScript = readFileSync(resolve(import.meta.dirname, '../build/installer.nsh'), 'utf8')
 
 describe('packaged file associations', () => {
+  it('packages a platform-specific LaTeX engine and its license for Windows and both Mac CPUs', () => {
+    expect(config.win.extraResources).toContainEqual({
+      from: '../../.local/latex/win32-x64/tectonic.exe',
+      to: 'latex/tectonic.exe',
+    })
+    expect(config.mac.extraResources).toContainEqual({
+      from: '../../.local/latex/darwin-${arch}/tectonic',
+      to: 'latex/tectonic',
+    })
+    expect(config.extraResources).toContainEqual({
+      from: 'build/TECTONIC-LICENSE.txt',
+      to: 'latex/TECTONIC-LICENSE.txt',
+    })
+  })
+  it('offers LaTeX on Mac without taking over the Windows source-file defaults', () => {
+    for (const ext of ['tex', 'ltx']) {
+      expect(
+        config.mac.fileAssociations.find((entry: { ext: string }) => entry.ext === ext),
+      ).toMatchObject({ ext, role: 'Editor', rank: 'Alternate' })
+      expect(config.win.fileAssociations.some((entry: { ext: string }) => entry.ext === ext)).toBe(
+        false,
+      )
+    }
+  })
   // The OS can only offer GenOffice in "Open With" (mac CFBundleDocumentTypes,
   // the Linux desktop MimeType list, the NSIS ProgIds) for types the bundle
   // declares. A routing entry without a matching declaration means a file the

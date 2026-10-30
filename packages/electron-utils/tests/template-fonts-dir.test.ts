@@ -28,7 +28,7 @@ describe('templateFontsDir', () => {
   })
 
   it('points the packaged app at its resources copy', () => {
-    const resources = join('C:', 'Program Files', 'IeumOffice', 'resources')
+    const resources = join('C:', 'Program Files', 'OfficeMax', 'resources')
     const dir = templateFontsDir({
       isPackaged: true,
       getAppPath: () => join(resources, 'app.asar'),

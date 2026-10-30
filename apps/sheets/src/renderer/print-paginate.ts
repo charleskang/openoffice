@@ -60,10 +60,11 @@ export function bandIndices(
   let start: number | null = null
   let used = 0
   let last = -1
+  // Ignore floating-point dust when fitted columns exactly fill a page.
   for (const index of indices) {
     const size = sizeOf(index)
     const open = start !== null
-    if (open && (breaks.has(index) || used + size > capacity)) {
+    if (open && (breaks.has(index) || used + size > capacity + 1e-7)) {
       bands.push({ start: start as number, end: last })
       start = null
       used = 0

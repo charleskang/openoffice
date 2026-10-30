@@ -7,6 +7,8 @@ export const ko = {
   tabHome: '홈',
   tabView: '보기',
   save: '저장',
+  exportPdf: 'PDF로 내보내기…',
+  pdfFailed: 'PDF로 내보내지 못했습니다.',
   saveAs: '다른 이름으로 저장…',
   saving: '저장 중…',
   saved: '저장했습니다',

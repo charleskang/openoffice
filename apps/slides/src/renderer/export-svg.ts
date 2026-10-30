@@ -1180,6 +1180,7 @@ function emitChart(b: PageBuilder, chart: ChartRenderNode): string {
         y2: a.y2,
         stroke: a.color,
         'stroke-width': a.widthPx,
+        'stroke-dasharray': a.dash?.length ? a.dash.map(n).join(' ') : undefined,
       }),
     )
   for (const p of chart.paths ?? [])

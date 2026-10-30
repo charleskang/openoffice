@@ -136,6 +136,17 @@ export {
 } from './animation'
 export { PackageArchive, PPTX_ZIP_LIMITS, assertZipWithinLimits } from './zip'
 export {
+  transformChartWorkbookStructure,
+  type ChartWorkbookStructuralOp,
+} from './chart-workbook-structure'
+export {
+  getEmbeddedChartWorkbook,
+  prepareChartWorkbookUpdate,
+  validateChartWorkbookUpdate,
+  applyChartWorkbookUpdate,
+  type ChartWorkbookUpdate,
+} from './chart-data-workbook'
+export {
   listEmbeddedFonts,
   eotToSfnt,
   type EmbeddedFontFace,

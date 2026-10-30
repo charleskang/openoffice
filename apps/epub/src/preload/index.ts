@@ -51,6 +51,7 @@ const core: EpubCoreApi = {
   consumePending: () => ipcRenderer.invoke(EPUB_CHANNELS.consumePending),
   openFile: (path) => ipcRenderer.invoke(EPUB_CHANNELS.openFile, path),
   readChapter: (spineIndex) => ipcRenderer.invoke(EPUB_CHANNELS.readChapter, spineIndex),
+  exportPdf: (chapters) => ipcRenderer.invoke(EPUB_CHANNELS.exportPdf, chapters),
   applyEdits: (request) => ipcRenderer.invoke(EPUB_CHANNELS.applyEdits, request),
   replaceRanges: (request) => ipcRenderer.invoke(EPUB_CHANNELS.replaceRanges, request),
   setTranslationLock: (locked) => ipcRenderer.invoke(EPUB_CHANNELS.setTranslationLock, locked),

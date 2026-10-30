@@ -268,4 +268,6 @@ export const it = {
   appStatusSummaryZoomInserted: 'Diapositiva zoom riepilogo inserita con {count} riquadri',
   appSectionSummary: 'Sezione riepilogo',
   appSectionN: 'Sezione {n}',
+  appChartWorkbookOpenError:
+    'Impossibile aprire i dati del grafico. Verificare che contenga un foglio di calcolo incorporato.',
 } satisfies Record<keyof typeof zh, string>

@@ -1476,4 +1476,8 @@ export const ar = {
   appVisualFlipV: 'قلب رأسي',
   appVisualFlipH: 'قلب أفقي',
   appCtxPasteVisual: 'لصق صورة أو شكل',
+  appEmbeddedChartHint: 'بيانات المخطط لـ {name}. احفظ لتحديث المخطط، ثم احفظ العرض التقديمي.',
+  appEmbeddedChartReturn: 'العودة إلى الشرائح',
+  appEmbeddedChartSaveError:
+    'تعذر تحديث المخطط. ربما تغير العرض التقديمي أو نطاق البيانات. احتفظ بالبيانات باستخدام حفظ باسم، ثم أعد فتح محرر البيانات.',
 } satisfies Record<keyof typeof zh, string>

@@ -10,7 +10,7 @@ import {
   AI_PROVIDERS,
   AI_SEARCH_PROVIDERS,
   HEADLESS_SUBSCRIPTION_CONSENT_VERSION,
-  defaultAiSettings,
+  defaultAiSettings as productDefaultAiSettings,
 } from '@genoffice/ai-provider'
 import type {
   AiSettings,
@@ -44,6 +44,12 @@ let setAiSettings: ReturnType<typeof vi.fn<(settings: AiSettings) => Promise<voi
 let settingsListeners: Array<() => void>
 let unhandled: unknown[]
 const onUnhandled = (reason: unknown) => unhandled.push(reason)
+
+// These legacy subscription scenarios opt into automatic subscription selection.
+function defaultAiSettings(): AiSettings {
+  const settings = productDefaultAiSettings()
+  return { ...settings, provider: 'auto', media: { ...settings.media!, imageProvider: 'codex' } }
+}
 
 beforeEach(() => {
   host = document.createElement('div')
@@ -185,7 +191,8 @@ function nav(label: string): HTMLButtonElement | undefined {
 
 function button(text: string, scope: ParentNode = host): HTMLButtonElement | undefined {
   return [...scope.querySelectorAll<HTMLButtonElement>('button')].find(
-    (candidate) => candidate.textContent?.trim() === text,
+    (candidate) =>
+      candidate.textContent?.trim() === text && !candidate.closest('[data-testid="openai-setup"]'),
   )
 }
 
@@ -224,7 +231,7 @@ async function openAiSection(): Promise<void> {
 }
 
 async function openAdvanced(): Promise<void> {
-  await click(host.querySelector('.set-adv-toggle'))
+  await click(host.querySelector('button.set-adv-toggle'))
 }
 
 function tab(label: string): HTMLButtonElement | undefined {
@@ -274,7 +281,7 @@ describe('the default view', () => {
     expect(labels).toEqual(['Account', 'AI', 'Skills', 'General', 'Integrations', 'About'])
   })
 
-  it('shows both subscription cards, the free cards, and no paid key input', async () => {
+  it('shows the OpenAI form and retains the optional subscription and free connections', async () => {
     installHome(defaultAiSettings())
     installSubscription(statusMap('ready', 'signed-out'))
     await openModal()
@@ -286,11 +293,11 @@ describe('the default view', () => {
     // the free connections sit outside Advanced (decision 0009); Gemini's key field is theirs
     expect(host.querySelectorAll('.free-ai-card')).toHaveLength(2)
 
-    expect(host.querySelector('input[type="password"]:not(.free-ai-key)')).toBeNull()
     expect(host.querySelector('#set-ai-key')).toBeNull()
-    expect(host.querySelector('.set-input:not(.free-ai-key)')).toBeNull()
-    expect(host.textContent).not.toContain('API Key')
-    expect(host.querySelector('.set-adv-toggle')?.getAttribute('aria-expanded')).toBe('false')
+    expect(host.querySelector('#office-openai-key')).not.toBeNull()
+    expect(host.querySelector('#set-ai-key')).toBeNull()
+    expect(host.textContent).toContain('API Key')
+    expect(host.querySelector('button.set-adv-toggle')?.getAttribute('aria-expanded')).toBe('false')
   })
 
   it('keeps the key panes under Advanced, one area at a time', async () => {
@@ -300,7 +307,7 @@ describe('the default view', () => {
     await openAiSection()
     await openAdvanced()
 
-    expect(host.querySelector('.set-adv-toggle')?.getAttribute('aria-expanded')).toBe('true')
+    expect(host.querySelector('button.set-adv-toggle')?.getAttribute('aria-expanded')).toBe('true')
     // the key provider pane: key, base URL, output cap
     expect(host.querySelector('#set-ai-key')).not.toBeNull()
     expect(host.querySelector('#set-ai-max-tokens')).not.toBeNull()
@@ -314,7 +321,8 @@ describe('the default view', () => {
 
     // closing Advanced takes every key field out again (the free Gemini card's own field stays)
     await openAdvanced()
-    expect(host.querySelector('input[type="password"]:not(.free-ai-key)')).toBeNull()
+    expect(host.querySelector('#set-ai-key')).toBeNull()
+    expect(host.querySelector('#office-openai-key')).not.toBeNull()
   })
 
   it('does not offer Claude in the key pane', async () => {
@@ -335,7 +343,7 @@ describe('the default view', () => {
     installSubscription(statusMap('ready', 'ready'))
     await openModal({ section: 'aiMedia', block: 'rerank' })
     expect(nav('AI')?.classList.contains('active')).toBe(true)
-    expect(host.querySelector('.set-adv-toggle')?.getAttribute('aria-expanded')).toBe('true')
+    expect(host.querySelector('button.set-adv-toggle')?.getAttribute('aria-expanded')).toBe('true')
     expect(tab('AI Media & Search')?.getAttribute('aria-selected')).toBe('true')
     expect(host.querySelector('#set-ai-search-key')).not.toBeNull()
   })
@@ -1029,9 +1037,9 @@ describe('media providers', () => {
 describe('saving', () => {
   function expectClean(saved: AiSettings): void {
     expect('retiredSwitch' in saved).toBe(false)
-    expect(saved.provider).toBe('auto')
+    expect(saved.provider).toBe('openai')
     expect(saved.media).toMatchObject({
-      imageProvider: 'codex',
+      imageProvider: 'none',
       analysisProvider: 'chat',
       videoAnalysisProvider: 'none',
     })
@@ -1045,7 +1053,7 @@ describe('saving', () => {
     await openAiSection()
     // opening the screen alone rewrites nothing
     expect(setAiSettings).not.toHaveBeenCalled()
-    expect(dropdown('AI to use')?.textContent).toBe('Automatic · Claude')
+    expect(dropdown('AI to use')?.textContent).toBe('OpenAI · cannot be used right now')
 
     await openAdvanced()
     await click(host.querySelector('.set-switch[role="switch"]'))
@@ -1074,9 +1082,9 @@ describe('saving', () => {
     const saved = lastSaved()
     expectClean(saved)
     expect(saved.providers.openai.apiKey).toBe('sk-typed')
-    // configured now: selectable above, still not selected
+    // configured now: the existing OpenAI selection can run
     expect((await optionsOf('AI to use')).map((option) => option.label)).toContain('OpenAI')
-    expect(dropdown('AI to use')?.textContent).toBe('Automatic · Claude')
+    expect(dropdown('AI to use')?.textContent).toBe('OpenAI')
   })
 
   it('a key pane save does not undo a selection made while its draft was open', async () => {

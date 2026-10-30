@@ -11,7 +11,7 @@ link="/usr/bin/ieumoffice"
 # same ownership rule as the post-install: only a link into our install dir is ours
 if [ -L "$link" ]; then
   case "$(readlink "$link")" in
-    /opt/IeumOffice/*) rm -f "$link" ;;
+    /opt/OfficeMax/*) rm -f "$link" ;;
   esac
 fi
 exit 0

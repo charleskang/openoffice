@@ -84,6 +84,23 @@ export async function writeAiSettings(draft: AiSettings): Promise<AiSettings> {
   return next
 }
 
+/** Saving this form is an explicit choice of the direct OpenAI API. */
+export function withOpenAiConfig(settings: AiSettings, apiKey: string, model: string): AiSettings {
+  return {
+    ...settings,
+    provider: 'openai',
+    providers: {
+      ...settings.providers,
+      openai: {
+        ...settings.providers.openai,
+        apiKey: apiKey.trim(),
+        model: model.trim(),
+        baseUrl: undefined,
+      },
+    },
+  }
+}
+
 /** the last read-change-write still under way; the next one waits for it */
 let lastChange: Promise<unknown> = Promise.resolve()
 

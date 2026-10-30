@@ -310,6 +310,10 @@ const desktopApi: DesktopApi = {
     )
     return parsePivotDefinitionResult(result)
   },
+  async showChartPresentation(sessionId) {
+    if (!isUuid(sessionId)) throw new Error('Invalid workbook session.')
+    await ipcRenderer.invoke(IPC_CHANNELS.showChartPresentation, sessionId)
+  },
   async saveWorkbookEdits(request) {
     const validatedRequest = parseSaveRequest(request)
     const result: unknown = await ipcRenderer.invoke(IPC_CHANNELS.saveWorkbook, validatedRequest)
@@ -872,6 +876,7 @@ function parseWorkbookFile(input: unknown): WorkbookFile {
   } = input
   if (
     !isUuid(sessionId) ||
+    (input.embeddedChartTitle !== undefined && typeof input.embeddedChartTitle !== 'string') ||
     typeof name !== 'string' ||
     (path !== undefined && (typeof path !== 'string' || path.length === 0)) ||
     typeof sha256 !== 'string' ||
@@ -1191,6 +1196,9 @@ function parseWorkbookFile(input: unknown): WorkbookFile {
     definedNames: parsedDefinedNames,
     readOnly,
     ...(needsSaveAs === undefined ? {} : { needsSaveAs }),
+    ...(typeof input.embeddedChartTitle === 'string'
+      ? { embeddedChartTitle: input.embeddedChartTitle }
+      : {}),
     ...(csvPath === undefined ? {} : { csvPath }),
     ...(emptyCsv === undefined ? {} : { emptyCsv }),
     ...(restoredFromRecovery === undefined ? {} : { restoredFromRecovery }),

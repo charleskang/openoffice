@@ -1449,4 +1449,8 @@ export const zh = {
   appVisualFlipV: '垂直翻转',
   appVisualFlipH: '水平翻转',
   appCtxPasteVisual: '粘贴图片/形状',
+  appEmbeddedChartHint: '这是 {name} 的图表数据。保存以更新图表，然后保存演示文稿。',
+  appEmbeddedChartReturn: '返回幻灯片',
+  appEmbeddedChartSaveError:
+    '无法更新图表。演示文稿或数据范围可能已更改。请先另存为以保留数据，然后重新打开数据编辑器。',
 }

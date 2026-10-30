@@ -1532,4 +1532,9 @@ export const ru = {
   appVisualFlipV: 'Отразить сверху вниз',
   appVisualFlipH: 'Отразить слева направо',
   appCtxPasteVisual: 'Вставить рисунок или фигуру',
+  appEmbeddedChartHint:
+    'Данные диаграммы для {name}. Сохраните для обновления диаграммы, затем сохраните презентацию.',
+  appEmbeddedChartReturn: 'Вернуться к слайдам',
+  appEmbeddedChartSaveError:
+    'Не удалось обновить диаграмму. Презентация или диапазон могли измениться. Сохраните данные через Сохранить как и откройте редактор заново.',
 } satisfies Record<keyof typeof zh, string>

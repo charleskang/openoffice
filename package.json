@@ -10,13 +10,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pblsketch/openoffice.git"
+    "url": "git+https://github.com/charleskang/openoffice.git"
   },
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
+    "latex:install": "node tools/install-latex-engine.mjs",
+    "release:windows": "node tools/build-local-windows-release.mjs",
     "postinstall": "install-electron",
     "format": "node tools/format-changed.mjs --write",
     "format:check": "node tools/format-changed.mjs --check",

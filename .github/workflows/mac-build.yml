@@ -103,14 +103,14 @@ jobs:
           for pair in mac-arm64:arm64 mac:x86_64; do
             dir="${pair%%:*}"
             cpu="${pair##*:}"
-            app="apps/shell/release/$dir/IeumOffice.app"
+            app="apps/shell/release/$dir/OfficeMax.app"
             codesign --verify --deep --strict --verbose=2 "$app"
             # read the whole report first: grep -q quitting early would break the pipe
             signature="$(codesign -dv "$app" 2>&1)"
             echo "$signature"
             grep -q 'Signature=adhoc' <<<"$signature"
             for bin in \
-              "$app/Contents/MacOS/IeumOffice" \
+              "$app/Contents/MacOS/OfficeMax" \
               "$app/Contents/Resources/native/xlsx-sidecar" \
               "$app/Contents/Resources/ocr/vision-ocr"; do
               test -f "$bin" || { echo "missing: $bin"; exit 1; }
@@ -118,7 +118,7 @@ jobs:
             done
           done
           # each dmg names its CPU (config.dmg.artifactName)
-          ls apps/shell/release/IeumOffice-*-arm64.dmg apps/shell/release/IeumOffice-*-x64.dmg
+          ls apps/shell/release/OfficeMax-*-arm64.dmg apps/shell/release/OfficeMax-*-x64.dmg
 
       # the Intel app runs on this runner only through Rosetta, which an image
       # may not carry yet
@@ -137,7 +137,7 @@ jobs:
           for pair in mac-arm64:arm64 mac:x86_64; do
             dir="${pair%%:*}"
             cpu="${pair##*:}"
-            exe="apps/shell/release/$dir/IeumOffice.app/Contents/MacOS/IeumOffice"
+            exe="apps/shell/release/$dir/OfficeMax.app/Contents/MacOS/OfficeMax"
             work="$RUNNER_TEMP/smoke-$cpu"
             mkdir -p "$work"
             printf '# Smoke test\n\nHello from the macOS build.\n' > "$work/note.md"
@@ -156,7 +156,7 @@ jobs:
       - name: Upload the release files
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ieumoffice-mac
+          name: officemax-mac
           path: |
             apps/shell/release/*.dmg
             apps/shell/release/*.zip
@@ -183,7 +183,7 @@ jobs:
       - name: Attach to the release
         run: |
           set -euo pipefail
-          gh run download "$GITHUB_RUN_ID" --name ieumoffice-mac --dir mac
+          gh run download "$GITHUB_RUN_ID" --name officemax-mac --dir mac
           [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "not a version tag: $TAG"; exit 1; }
           gh release view "$TAG" >/dev/null || { echo "no release $TAG: publish it first"; exit 1; }
           feed=$(ls mac/*-mac.yml)

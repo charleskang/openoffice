@@ -252,4 +252,5 @@ export const ar = {
   appStatusSummaryZoomInserted: 'تم إدراج شريحة تكبير/تصغير الملخص مع {count} مربعات',
   appSectionSummary: 'مقطع الملخص',
   appSectionN: 'المقطع {n}',
+  appChartWorkbookOpenError: 'تعذر فتح بيانات المخطط. تحقق من وجود جدول بيانات مضمن.',
 } satisfies Record<keyof typeof zh, string>

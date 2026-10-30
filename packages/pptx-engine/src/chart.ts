@@ -133,6 +133,9 @@ export interface ChartAxisStyle {
   /** <c:numFmt formatCode>: source-linked data labels format numbers with this (omitted for "General") */
   numFmt?: string
   lineColor?: string
+  /** Explicit axis outline style, also used for a dashed zero reference line. */
+  lineDash?: string
+  lineWidthEmu?: number
   /** <c:spPr><a:ln><a:noFill/>: the axis line is not drawn (labels/ticks unaffected) */
   lineHidden?: boolean
   gridColor?: string
@@ -155,6 +158,7 @@ export interface ChartAxisStyle {
   tickLblSkip?: number
   tickMarkSkip?: number
   title?: string
+  titleLayout?: ChartModel['legendLayout']
   /** <c:title><c:overlay val="1"/>: the axis title floats over the plot, reserving no space */
   titleOverlay?: boolean
   /** <c:orientation val="maxMin"/>: categories/values reversed (common for bar charts with the first category on top) */
@@ -259,7 +263,10 @@ export interface ChartModel {
   dataLabelSpcPt?: number
   /** Chart title (concatenated rich text of c:chart/c:title) */
   title?: string
-  /** Title font size (pt) from c:title/c:txPr default run properties */
+  /** Authored title position in chart-frame fractions. */
+  titleLayout?: ChartModel['legendLayout']
+  titleFontFamily?: string
+  /** Title font size (pt) from the explicit rich run, else its defaults. */
   titlePt?: number
   /** <c:title><c:overlay val="1"/>: the title floats over the plot, reserving no space */
   titleOverlay?: boolean
@@ -987,7 +994,7 @@ export function parseChartXml(
     const p0 = Array.isArray(rich?.['a:p']) ? rich['a:p'][0] : rich?.['a:p']
     const r0 = Array.isArray(p0?.['a:r']) ? p0['a:r'][0] : p0?.['a:r']
     const titleRPr = r0?.['a:rPr'] ?? p0?.['a:pPr']?.['a:defRPr']
-    if (!model.titlePt) {
+    {
       const runSz = parseInt(titleRPr?.['@_sz'] ?? p0?.['a:pPr']?.['a:defRPr']?.['@_sz'], 10)
       if (Number.isFinite(runSz) && runSz > 0) model.titlePt = runSz / 100
     }
@@ -1000,6 +1007,9 @@ export function parseChartXml(
       (Array.isArray(titP) ? titP[0] : titP)?.['a:pPr']?.['a:defRPr'],
     ].filter(Boolean)
     const styleAttr = (k: string) => styleLayers.map((l) => l[k]).find((v) => v != null)
+    model.titleLayout = readTextLayout(chart['c:title'])
+    const family = styleAttr('a:latin')?.['@_typeface']
+    if (family) model.titleFontFamily = resolveFontRef(String(family), theme)
     const b = styleAttr('@_b')
     if (b != null) model.titleBold = b === '1'
     if (styleAttr('@_i') === '1') model.titleItalic = true
@@ -1415,6 +1425,10 @@ function parseAxis(ax: any, theme?: Theme): ChartAxisStyle | undefined {
   const lineColor = resolveColorNode(ax['c:spPr']?.['a:ln']?.['a:solidFill'], theme)
   if (lineColor) out.lineColor = lineColor
   const axLn = ax['c:spPr']?.['a:ln']
+  const axisDash = axLn?.['a:prstDash']?.['@_val']
+  if (axisDash && axisDash !== 'solid') out.lineDash = axisDash
+  const axisWidth = Number(axLn?.['@_w'])
+  if (Number.isFinite(axisWidth) && axisWidth > 0) out.lineWidthEmu = axisWidth
   if (axLn && typeof axLn === 'object' && 'a:noFill' in axLn) out.lineHidden = true
   // A self-closing <c:majorGridlines/> (no spPr) parses to an empty string; still counts as having gridlines
   const grid = ax['c:majorGridlines']
@@ -1457,6 +1471,7 @@ function parseAxis(ax: any, theme?: Theme): ChartAxisStyle | undefined {
   if (title) {
     out.title = title
     if (titleNode?.['c:overlay']?.['@_val'] === '1') out.titleOverlay = true
+    out.titleLayout = readTextLayout(titleNode)
     const tp0raw = titleNode?.['c:tx']?.['c:rich']?.['a:p']
     const tp0 = Array.isArray(tp0raw) ? tp0raw[0] : tp0raw
     const tr0 = Array.isArray(tp0?.['a:r']) ? tp0['a:r'][0] : tp0?.['a:r']
@@ -1493,4 +1508,25 @@ function collectText(rich: any, paraSep = ''): string | undefined {
   }
   const s = paraTexts.join(paraSep)
   return s.trim() ? s : undefined
+}
+
+/** Manual title coordinates use the same edge/factor modes as a legend. */
+function readTextLayout(node: any): ChartModel['legendLayout'] {
+  const man = node?.['c:layout']?.['c:manualLayout']
+  if (!man) return undefined
+  const frac = (key: string) => {
+    const value = Number(man[key]?.['@_val'])
+    return Number.isFinite(value) && Math.abs(value) <= 10 ? value : undefined
+  }
+  const x = frac('c:x'),
+    y = frac('c:y')
+  if (x === undefined && y === undefined) return undefined
+  return {
+    ...(x !== undefined
+      ? { x, xMode: man['c:xMode']?.['@_val'] === 'edge' ? ('edge' as const) : ('factor' as const) }
+      : {}),
+    ...(y !== undefined
+      ? { y, yMode: man['c:yMode']?.['@_val'] === 'edge' ? ('edge' as const) : ('factor' as const) }
+      : {}),
+  }
 }

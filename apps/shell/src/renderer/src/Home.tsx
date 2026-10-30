@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DragEvent as ReactDragEvent, ReactElement } from 'react'
-import logoLockup from './assets/genoffice-logo.svg'
+import appIcon from './assets/app-icon.png'
+import { WorkspaceStart } from './WorkspaceStart'
+import { workspaceText } from './i18n/strings-workspace'
 import { KbAskPanel } from './KbAskPanel'
 import iconDocx from './assets/file-docx.svg'
 import iconXlsx from './assets/file-xlsx.svg'
 import iconPptx from './assets/file-pptx.svg'
 import iconPdf from './assets/file-pdf.svg'
 import iconMd from './assets/file-md.svg'
+import iconTex from './assets/file-tex.svg'
 import iconHtml from './assets/file-html.svg'
 import iconMindmap from './assets/file-mindmap.svg'
 import iconHwp from './assets/file-hwp.svg'
@@ -50,6 +53,9 @@ import { FirstConnectionDialog } from './FirstConnectionNotice'
 import { LaunchRecoveryList } from './RecoveryList'
 import type { SubscriptionConnection } from './subscription-client'
 import { subscriptionSummary } from './subscription-status'
+import { useAiSettings } from './FreeAiCards'
+import { isKeyProviderConfigured } from '@genoffice/ai-provider/browser'
+import { openAiText } from './i18n/strings-openai'
 import './pdf-tools/globals'
 import './quick-look/globals'
 import './quick-look/quick-look.css'
@@ -72,16 +78,6 @@ declare global {
 /** page size of the home list; scrolling to the bottom auto-loads the next page */
 const PAGE_SIZE = 50
 
-/** greeting sublines on the home page: one is picked at random on entry */
-const GREET_ASK_KEYS = [
-  'greetAsk1',
-  'greetAsk2',
-  'greetAsk3',
-  'greetAsk4',
-  'greetAsk5',
-  'greetAsk6',
-] as const satisfies readonly StringKey[]
-
 const FILE_ICONS: Record<string, string> = {
   docx: iconDocx,
   // ODT opens in the Word tab, so it wears the Word tile
@@ -92,6 +88,8 @@ const FILE_ICONS: Record<string, string> = {
   pdf: iconPdf,
   md: iconMd,
   markdown: iconMd,
+  tex: iconTex,
+  ltx: iconTex,
   html: iconHtml,
   htm: iconHtml,
   xmind: iconMindmap,
@@ -104,7 +102,7 @@ const FILE_ICONS: Record<string, string> = {
    width, so it ellipsizes and a hover ScreenTip carries the full list. Keep in
    sync with the main-process open-dialog filter (OPEN_DIALOG_EXTENSIONS). */
 const OPEN_LOCAL_EXTENSIONS =
-  '.docx / .odt / .xlsx / .xlsm / .xls / .csv / .tsv / .pptx / .pdf / .md / .html / .xmind / .hwp / .hwpx / .epub'
+  '.docx / .odt / .xlsx / .xlsm / .xls / .csv / .tsv / .pptx / .pdf / .md / .tex / .ltx / .zip / .html / .xmind / .hwp / .hwpx / .epub'
 
 /** drag payload of home file/folder rows (JSON array of absolute paths) */
 const DRAG_PATHS_MIME = 'application/x-genoffice-paths'
@@ -293,7 +291,7 @@ const FILTER_FAMILY: Record<string, readonly string[]> = {
   docx: ['docx', 'doc', 'odt'],
   xlsx: ['xlsx', 'xlsm', 'xls', 'csv', 'tsv'],
   pptx: ['pptx', 'ppt'],
-  md: ['md', 'markdown', 'txt', 'json'],
+  md: ['md', 'markdown', 'txt', 'json', 'tex', 'ltx'],
   html: ['html', 'htm'],
   hwp: ['hwp', 'hwpx'],
 }
@@ -885,19 +883,25 @@ function AccountEntry({
     refresh()
   }
 
+  const apiSettings = useAiSettings()
+  const apiMode = apiSettings?.provider === 'openai'
+  const apiReady = apiSettings && isKeyProviderConfigured(apiSettings, 'openai')
   const summary = subscriptionSummary(connection.statuses)
+  const connectionState = apiMode ? (apiReady ? 'connected' : 'disconnected') : summary.state
   const names = summary.connected.map(aiSubscriptionProviderName).join(' · ')
   // one connection shows its own state line (plan, or charged by usage); two just read "Connected"
   const only = summary.connected.length === 1 ? summary.connected[0] : undefined
   const onlyView = only ? aiSubscriptionCardView(connection.statuses[only]) : null
-  const stateText =
-    summary.state === 'connected'
+  const stateText = apiMode
+    ? openAiText(lang, apiReady ? 'ready' : 'missing')
+    : summary.state === 'connected'
       ? onlyView
         ? aiSubscriptionText(lang, onlyView.statusKey, { plan: onlyView.planName ?? '' })
         : aiSubscriptionText(lang, 'cardReady')
       : null
-  const label =
-    summary.state === 'connected'
+  const label = apiMode
+    ? 'OpenAI API'
+    : summary.state === 'connected'
       ? names
       : summary.state === 'checking'
         ? aiSubscriptionText(lang, 'cardChecking')
@@ -919,17 +923,19 @@ function AccountEntry({
         onClick={handleClick}
         aria-haspopup="dialog"
         aria-expanded={settingsOpen}
-        data-subscription={summary.state}
+        data-subscription={connectionState}
         data-tip={
-          summary.state === 'connected'
-            ? `${names} · ${stateText}`
-            : summary.state === 'checking'
-              ? t('settings')
-              : aiSubscriptionText(lang, 'connectTitle')
+          apiMode
+            ? `OpenAI API · ${stateText}`
+            : summary.state === 'connected'
+              ? `${names} · ${stateText}`
+              : summary.state === 'checking'
+                ? t('settings')
+                : aiSubscriptionText(lang, 'connectTitle')
         }
         aria-label={t('settings')}
       >
-        <span className={`account-avatar${summary.state === 'connected' ? ' logged-in' : ''}`}>
+        <span className={`account-avatar${connectionState === 'connected' ? ' logged-in' : ''}`}>
           <AiMark size={16} />
           {skillUpdate && (
             <span className="account-badge" role="img" aria-label={t('intgUpdateDue')} />
@@ -1110,9 +1116,6 @@ export function Home({
   const [confirmDelete, setConfirmDelete] = useState<string[] | null>(null)
   // unavailable recent entry (missing flag) the user clicked — offer list removal
   const [confirmMissing, setConfirmMissing] = useState<RecentEntry | null>(null)
-  const [greetAskKey] = useState(
-    () => GREET_ASK_KEYS[Math.floor(Math.random() * GREET_ASK_KEYS.length)]!,
-  )
 
   // ── Folder tree state ──
   // the default save folder first, then the folders the user added; `root` is the default one
@@ -1882,6 +1885,19 @@ export function Home({
             </span>
           </button>
         ))}
+        <button
+          className="quick-card"
+          onClick={() => void window.aiOffice.browse('latex')}
+          data-testid="open-latex-card"
+        >
+          <FileBadge ext="tex" size={30} />
+          <span className="quick-text">
+            <span className="quick-title-row">
+              <span className="quick-title">{workspaceText(lang, 'openLatex')}</span>
+            </span>
+            <span className="quick-sub">.tex / .ltx / .zip</span>
+          </span>
+        </button>
         <button
           className="quick-card"
           onClick={() => void window.aiOffice.browse()}
@@ -3033,29 +3049,28 @@ export function Home({
   // ── Plain view ────────────────────────────────────────
 
   function renderGlobalContent() {
-    const now = new Date()
-    const hour = now.getHours()
-    const greetKey =
-      hour < 6
-        ? 'greetEvening'
-        : hour < 12
-          ? 'greetMorning'
-          : hour < 18
-            ? 'greetAfternoon'
-            : 'greetEvening'
-    const cjk = lang === 'zh' || lang === 'zh-TW' || lang === 'ja'
-    const greeting = `${t(greetKey)}${cjk ? '。' : '. '}`
     return (
-      <main className="content">
-        <section className="quick-start" aria-label={t('secQuickStart')}>
-          <div className="home-hero">
-            <h1 className="hero-title">
-              {greeting}
-              <span className="hero-ask">{t(greetAskKey)}</span>
-            </h1>
-          </div>
-          {renderQuickCards()}
-        </section>
+      <main className="content workspace-home">
+        <WorkspaceStart
+          lang={lang}
+          resume={
+            view === 'recent' && filter === 'all' && !searchActive
+              ? entries.find((entry) => !entry.missing)
+              : undefined
+          }
+          folders={roots}
+          openLabel={t('openLocal')}
+          starredLabel={t('secStarred')}
+          onBrowse={() => void window.aiOffice.browse()}
+          onOpen={(path) => void window.aiOffice.openPath(path)}
+          onFolder={selectFolder}
+          onStarred={() => changeView('starred')}
+          createItems={NEW_ITEMS.slice(0, 3).map((item) => ({
+            title: item.title,
+            icon: FILE_ICONS[item.ext]!,
+            onCreate: () => void item.action(),
+          }))}
+        />
 
         <section
           className="recents"
@@ -3207,6 +3222,10 @@ export function Home({
             </div>
           )}
         </section>
+        <details className="workspace-create">
+          <summary>{workspaceText(lang, 'allFormats')}</summary>
+          {renderQuickCards()}
+        </details>
       </main>
     )
   }
@@ -3223,7 +3242,8 @@ export function Home({
     <div className="home">
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <img className="logo-lockup" src={logoLockup} alt={productName(lang)} />
+          <img className="workspace-brand-icon" src={appIcon} alt="" />
+          <span className="workspace-brand-name">{productName(lang)}</span>
           {RELEASE_IS_BETA && (
             <span className="beta-badge" title={t('betaTooltip')}>
               {t('betaBadge')}

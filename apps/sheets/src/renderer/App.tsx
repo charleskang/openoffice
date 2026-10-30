@@ -1,4 +1,6 @@
+import { cacheChartFormulaResults } from './embedded-chart-formulas'
 import { focusWorksheet } from './sheet-focus'
+import { PdfExportDialog } from './PdfExportDialog'
 import {
   activateFormulaClosure,
   applyDefinedNames,
@@ -617,6 +619,7 @@ export function App({
     new Set(),
   )
   const [printHost, setPrintHost] = useState<PrintPreviewHost | null>(null)
+  const [pdfExportOpen, setPdfExportOpen] = useState(false)
   const pageBreakLayersRef = useRef<Map<string, { dispose(): void }[]>>(new Map())
   const pageBreakIdRef = useRef(0)
   /// App-level setting, Excel-style: not stored in the file, kept across
@@ -4251,7 +4254,10 @@ export function App({
       visualArrangeContext,
       pivotContext,
       handlePageLayoutCommand: (rest) => handlePageLayoutCommandImpl(pageLayoutContext(), rest),
-      handleExportPdf: () => handleExportPdfImpl(pageLayoutContext()),
+      handleExportPdf: async () => {
+        setPdfExportOpen(true)
+        return false
+      },
     }
   }
 
@@ -4903,6 +4909,20 @@ export function App({
     if (mode === 'recovery' && gate.busy) return { ok: false }
     return gate.run(async () => {
       if (!(await commitActiveEditor())) return { ok: false }
+      const state = lazyWorkbookRef.current
+      if (mode === 'save' && workbookFile?.embeddedChartTitle && state) {
+        const edits = [...state.editJournal.cells].flatMap(([sheetId, cells]) =>
+          [...cells.values()].map((cell) => ({
+            sheetId,
+            row: cell.row,
+            column: cell.column,
+            formula: cell.formula,
+          })),
+        )
+        await cacheChartFormulaResults(edits, (addresses, sheetId) =>
+          readCellsImpl(readContext(), [...addresses], sheetId),
+        )
+      }
       return handleSaveImpl(saveContext(), mode, quiet, explicitTarget)
     })
   }
@@ -4942,7 +4962,7 @@ export function App({
     } else if (action === 'print') {
       void openPrintPreviewHost(pageLayoutContext()).then(setPrintHost)
     } else if (action === 'export-pdf') {
-      void handleExportPdfImpl(pageLayoutContext())
+      setPdfExportOpen(true)
     } else if (action === 'export-csv') {
       void handleExportCsvImpl(csvExportContext())
     } else if (action === 'undo' || action === 'redo') {
@@ -5243,6 +5263,16 @@ export function App({
   return (
     <>
       <ToastHost />
+      {pdfExportOpen && (
+        <PdfExportDialog
+          onClose={() => setPdfExportOpen(false)}
+          message={message}
+          onExport={async (scope) => {
+            if (!(await commitActiveEditor())) return false
+            return handleExportPdfImpl(pageLayoutContext(), undefined, scope)
+          }}
+        />
+      )}
       {fullLoadPrompt && (
         <div className="dialog-backdrop">
           <div
@@ -5332,6 +5362,20 @@ export function App({
         />
       )}
       <ExcelShell
+        embeddedChartNotice={
+          workbookFile?.embeddedChartTitle ? (
+            <div className="embedded-chart-banner" role="status">
+              <span>
+                {t('appEmbeddedChartHint').replace('{name}', workbookFile.embeddedChartTitle)}
+              </span>
+              <button
+                onClick={() => void window.desktopApi.showChartPresentation(workbookFile.sessionId)}
+              >
+                {t('appEmbeddedChartReturn')}
+              </button>
+            </div>
+          ) : null
+        }
         openingWorkbook={openingWorkbook}
         prompt={prompt}
         preview={preview}

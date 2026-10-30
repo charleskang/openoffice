@@ -1563,4 +1563,9 @@ export const ja = {
   appVisualFlipV: '上下反転',
   appVisualFlipH: '左右反転',
   appCtxPasteVisual: '図または図形を貼り付け',
+  appEmbeddedChartHint:
+    '{name} のグラフデータです。保存するとグラフに反映されます。その後、プレゼンテーションも保存してください。',
+  appEmbeddedChartReturn: 'スライドに戻る',
+  appEmbeddedChartSaveError:
+    'グラフを更新できませんでした。プレゼンテーションまたはデータ範囲が変更された可能性があります。名前を付けて保存してデータを保管し、データ編集画面を開き直してください。',
 } satisfies Record<keyof typeof zh, string>

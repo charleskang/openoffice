@@ -249,4 +249,5 @@ export const th = {
   appStatusSummaryZoomInserted: 'แทรกสไลด์ซูมสรุปพร้อม {count} ช่อง',
   appSectionSummary: 'ส่วนสรุป',
   appSectionN: 'ส่วน {n}',
+  appChartWorkbookOpenError: 'ไม่สามารถเปิดข้อมูลแผนภูมิได้ โปรดตรวจสอบว่ามีสเปรดชีตฝังอยู่',
 } satisfies Record<keyof typeof zh, string>

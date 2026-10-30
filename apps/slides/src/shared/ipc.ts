@@ -1664,6 +1664,7 @@ export interface SlidesApi {
     label: string
     colors: string[]
   }> | null>
+  openChartWorkbook: (slideIndex: number, sourceId: string) => Promise<boolean>
   /** Read the chart's current data (dialog echo) */
   getChartData: (
     slideIndex: number,

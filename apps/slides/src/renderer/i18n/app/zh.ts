@@ -240,4 +240,5 @@ export const zh = {
   appStatusSummaryZoomInserted: '已插入摘要缩放页（{count} 个缩略图）',
   appSectionSummary: '摘要节',
   appSectionN: '第 {n} 节',
+  appChartWorkbookOpenError: '无法打开图表数据。请检查图表是否包含嵌入的电子表格。',
 }

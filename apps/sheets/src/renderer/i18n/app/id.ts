@@ -1517,4 +1517,9 @@ export const id = {
   appVisualFlipV: 'Balik Vertikal',
   appVisualFlipH: 'Balik Horizontal',
   appCtxPasteVisual: 'Tempel Gambar atau Bentuk',
+  appEmbeddedChartHint:
+    'Data bagan untuk {name}. Simpan untuk memperbarui bagan, lalu simpan presentasi.',
+  appEmbeddedChartReturn: 'Kembali ke slide',
+  appEmbeddedChartSaveError:
+    'Bagan tidak dapat diperbarui. Presentasi atau rentang data mungkin berubah. Simpan data dengan Simpan sebagai, lalu buka kembali editor.',
 } satisfies Record<keyof typeof zh, string>

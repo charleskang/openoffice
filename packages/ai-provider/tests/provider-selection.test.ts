@@ -57,8 +57,8 @@ function settingsWith(provider: AiProviderSelection, patch: Partial<AiSettings> 
 const accepted = { meteredAccepted: true }
 
 describe('selectAiProvider with auto', () => {
-  it('is the default selection', () => {
-    expect(defaultAiSettings().provider).toBe('auto')
+  it('keeps OpenAI as the default selection', () => {
+    expect(defaultAiSettings().provider).toBe('openai')
   })
 
   it('picks Claude when Claude is ready', () => {

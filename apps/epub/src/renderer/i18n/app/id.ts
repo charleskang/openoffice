@@ -7,6 +7,8 @@ export const id = {
   tabHome: 'Beranda',
   tabView: 'Tampilan',
   save: 'Simpan',
+  exportPdf: 'Ekspor sebagai PDF…',
+  pdfFailed: 'Dokumen tidak dapat diekspor sebagai PDF.',
   saveAs: 'Simpan Sebagai…',
   saving: 'Menyimpan…',
   saved: 'Tersimpan',

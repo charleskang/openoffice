@@ -17,6 +17,8 @@ export const LAUNCHABLE_EXTS = [
   'markdown',
   'txt',
   'json',
+  'tex',
+  'ltx',
   'html',
   'htm',
   'xmind',
@@ -25,7 +27,12 @@ export const LAUNCHABLE_EXTS = [
   'epub',
 ] as const
 
-const SUPPORTED_LAUNCH_RE = new RegExp(`\\.(${LAUNCHABLE_EXTS.join('|')})$`, 'i')
+// These open explicitly without taking over the operating system's ZIP or source associations.
+const PROJECT_OPEN_EXTS = ['zip', 'bib', 'sty', 'cls', 'bst']
+const SUPPORTED_LAUNCH_RE = new RegExp(
+  `\\.(${[...LAUNCHABLE_EXTS, ...PROJECT_OPEN_EXTS].join('|')})$`,
+  'i',
+)
 const UNSUPPORTED_LAUNCH_RE = /\.(doc|rtf|ppt|pps|odp|ods|xlsb|pages|key|numbers)$/i
 
 interface LaunchPayload {

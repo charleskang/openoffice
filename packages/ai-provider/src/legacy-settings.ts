@@ -35,13 +35,12 @@ import type {
   AiVideoAnalysisProviderSelection,
 } from './types'
 
-export const DEFAULT_AI_PROVIDER_SELECTION: AiProviderSelection = 'auto'
+export const DEFAULT_AI_PROVIDER_SELECTION: AiProviderSelection = 'openai'
 /**
- * Stored even in a build without Codex image generation: there it behaves
- * exactly like `none` (see resolveImageBackend), so the stored value does not
- * depend on which build wrote the file.
+ * Image generation stays off until the user configures it separately;
+ * the API profile does not require a Codex subscription for images.
  */
-export const DEFAULT_AI_IMAGE_PROVIDER: AiImageProviderSelection = 'codex'
+export const DEFAULT_AI_IMAGE_PROVIDER: AiImageProviderSelection = 'none'
 export const DEFAULT_AI_ANALYSIS_PROVIDER: AiAnalysisProviderSelection = 'chat'
 export const DEFAULT_AI_VIDEO_ANALYSIS_PROVIDER: AiVideoAnalysisProviderSelection = 'none'
 /** Parallel with an empty key is the keyless free route (free Parallel search, then DuckDuckGo) */

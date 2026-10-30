@@ -5,6 +5,8 @@ export const zh = {
   tabHome: '开始',
   tabView: '视图',
   save: '保存',
+  exportPdf: '导出为 PDF…',
+  pdfFailed: '无法导出为 PDF。',
   saveAs: '另存为…',
   saving: '正在保存…',
   saved: '已保存',

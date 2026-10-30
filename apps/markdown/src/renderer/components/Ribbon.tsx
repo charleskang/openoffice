@@ -67,6 +67,7 @@ interface Props {
   mdTheme: MarkdownTheme
   onMarkdownTheme: (theme: MarkdownTheme) => void
   aiOpen: boolean
+  aiEnabled?: boolean
   onToggleAi: () => void
   onAiPreset: (instruction: string) => void
   /**
@@ -280,6 +281,7 @@ export function Ribbon({
   mdTheme,
   onMarkdownTheme,
   aiOpen,
+  aiEnabled = true,
   onToggleAi,
   onAiPreset,
   sourceMode = false,
@@ -454,7 +456,7 @@ export function Ribbon({
               type="button"
               className={`rb-big ai-entry${aiOpen ? ' active' : ''}`}
               data-tip={t('aiOpenAssistant')}
-              disabled={disabled}
+              disabled={disabled || !aiEnabled}
               onMouseDown={(e) => e.preventDefault()}
               onClick={onToggleAi}
             >

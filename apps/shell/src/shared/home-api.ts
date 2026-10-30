@@ -252,7 +252,7 @@ export interface HomeApi {
   /** open an existing file, routing to the right module by extension */
   openPath(path: string): Promise<void>
   /** file picker accepting every supported extension, then routes */
-  browse(): Promise<void>
+  browse(kind?: 'latex'): Promise<void>
   /** open a docs window at its start screen; `dir` = folder the first save should land in */
   newDoc(opts?: NewFileOpts): Promise<void>
   /** open a sheets window */

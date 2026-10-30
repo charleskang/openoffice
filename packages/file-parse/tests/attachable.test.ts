@@ -15,6 +15,8 @@ const DOCS_MAIN_EXTS = [
   'txt',
   'md',
   'markdown',
+  'tex',
+  'ltx',
   'csv',
   'tsv',
   'json',

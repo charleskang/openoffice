@@ -19,16 +19,16 @@ const { join } = require('node:path')
 // folder, the executable name, the userData folder and the Windows ProgIds.
 // None of them may coincide with the upstream GenOffice app, so both can be
 // installed on one machine without touching each other's registration.
-const APP_ID = 'io.github.pblsketch.ieumoffice'
-const PRODUCT_NAME = 'IeumOffice'
+const APP_ID = 'io.github.charleskang.officemax'
+const PRODUCT_NAME = 'OfficeMax'
 // package.json "name" of the packaged app (the workspace keeps upstream's
 // "@genoffice/shell"): electron-builder and electron-updater name the per-user
 // folder that caches the installer and downloaded updates after it
 // (<local app data>/<name>-updater), so a shared name is a shared folder.
-const PACKAGED_APP_NAME = 'ieumoffice'
-const REPO_OWNER = 'pblsketch'
+const PACKAGED_APP_NAME = 'officemax'
+const REPO_OWNER = 'charleskang'
 const REPO_NAME = 'openoffice'
-const MAINTAINER = 'pblsketch <pblsketch@users.noreply.github.com>'
+const MAINTAINER = 'charleskang <charleskang@users.noreply.github.com>'
 
 // GENOFFICE_MAC_X64=1 — package the Intel (x64) dmg/zip alongside arm64.
 // The release build on GitHub's Mac runner sets it (.github/workflows/
@@ -340,12 +340,21 @@ function ensureThirdPartyNotices() {
 // product-own ProgId with the per-type document icon for each, so choosing
 // this app for them shows the Hangul, mind-map or book icon instead of the
 // bare app icon (the .ico files ship via win.extraResources below).
-const WIN_OPEN_WITH_ONLY_EXTS = new Set(['txt', 'json', 'xmind', 'hwp', 'hwpx', 'epub'])
+const WIN_OPEN_WITH_ONLY_EXTS = new Set([
+  'txt',
+  'json',
+  'tex',
+  'ltx',
+  'xmind',
+  'hwp',
+  'hwpx',
+  'epub',
+])
 // NSIS registers each association under a ProgId taken from its `name`
 // (HKCU\Software\Classes\<name>). The upstream app registers the bare names
 // below ("Word Document"), so sharing them would let either install overwrite
 // the other's open command and either uninstall delete it: Windows gets
-// product-scoped ProgIds instead ("IeumOffice.WordDocument"). The same ids are
+// product-scoped ProgIds instead ("OfficeMax.WordDocument"). The same ids are
 // spelled out in src/main/default-app.ts and build/installer.nsh.
 const winProgId = (name) => `${PRODUCT_NAME}.${name.replace(/[^A-Za-z0-9]/g, '')}`
 const FILE_ASSOCIATIONS = [
@@ -440,6 +449,22 @@ const FILE_ASSOCIATIONS = [
     mimeType: 'application/json',
   },
   {
+    ext: 'tex',
+    name: 'LaTeX Source',
+    rank: 'Alternate',
+    role: 'Editor',
+    icon: 'tex',
+    mimeType: 'text/x-tex',
+  },
+  {
+    ext: 'ltx',
+    name: 'LaTeX Source',
+    rank: 'Alternate',
+    role: 'Editor',
+    icon: 'tex',
+    mimeType: 'text/x-tex',
+  },
+  {
     ext: 'html',
     name: 'HTML Document',
     role: 'Editor',
@@ -505,6 +530,8 @@ const config = {
   },
   files: ['out/**'],
   extraResources: [
+    { from: 'build/TECTONIC-LICENSE.txt', to: 'latex/TECTONIC-LICENSE.txt' },
+    { from: 'build/TECTONIC-SOURCE.txt', to: 'latex/TECTONIC-SOURCE.txt' },
     // Apache-2.0 §4(a)/(d): every copy carries the license and the NOTICE of
     // the work; NOTICE refers to LICENSE-UNICODE.txt for the Unicode data
     {
@@ -666,8 +693,8 @@ const config = {
     // Two separate arch packages (NOT universal): arm64 keeps the exact
     // artifact names and update-feed entries it always had, x64 (via
     // GENOFFICE_MAC_X64=1, see includeMacX64 above) adds the Intel package:
-    // IeumOffice-<v>-x64.dmg (config.dmg.artifactName below) and the
-    // arch-less IeumOffice-<v>-mac.zip. Both zips land in one latest-mac.yml,
+    // OfficeMax-<v>-x64.dmg (config.dmg.artifactName below) and the
+    // arch-less OfficeMax-<v>-mac.zip. Both zips land in one latest-mac.yml,
     // which a Mac install only reads for the version. Dual-arch packs ship the
     // same lipo fat xlsx-sidecar (see assertUniversalSidecar above).
     target: [
@@ -682,6 +709,10 @@ const config = {
     entitlementsInherit: 'build/entitlements.mac.plist',
     notarize: true,
     extraResources: [
+      {
+        from: '../../.local/latex/darwin-${arch}/tectonic',
+        to: 'latex/tectonic',
+      },
       {
         from: '../sheets/native/xlsx-engine/target/release/xlsx-sidecar',
         to: 'native/xlsx-sidecar',
@@ -699,6 +730,10 @@ const config = {
       (a) => ({ ...a, name: winProgId(a.name) }),
     ),
     extraResources: [
+      {
+        from: '../../.local/latex/win32-x64/tectonic.exe',
+        to: 'latex/tectonic.exe',
+      },
       {
         from: WIN_SIDECAR,
         to: 'native/xlsx-sidecar.exe',
@@ -768,7 +803,7 @@ const config = {
     // Electron takes its X11 app_id from package.json "desktopName"
     // (ieumoffice.desktop); syncDesktopName makes electron-builder name the
     // .desktop file and its StartupWMClass from the same value. Without it
-    // StartupWMClass falls back to productName ("IeumOffice"), which does not
+    // StartupWMClass falls back to productName ("OfficeMax"), which does not
     // match the "ieumoffice" WM_CLASS the window actually reports — and X11
     // compares case-sensitively, so the taskbar shows an unlinked window.
     syncDesktopName: true,
@@ -786,7 +821,7 @@ const config = {
   // treats successive releases as upgrades of the same package and never
   // collides with an upstream genoffice deb install.
   deb: {
-    artifactName: 'ieumoffice_${version}_${arch}.deb',
+    artifactName: 'officemax_${version}_${arch}.deb',
     packageName: PACKAGED_APP_NAME,
     // Ubuntu 24.04 (and Debian 13) rebuilt part of the X/GTK stack for 64-bit
     // time_t and renamed those packages with a "t64" suffix: where the old
@@ -825,7 +860,7 @@ const config = {
   // the rpm is a GitHub-Release download only, so latest-linux.yml lists
   // AppImage + deb.
   rpm: {
-    artifactName: 'ieumoffice-${version}.${arch}.rpm',
+    artifactName: 'officemax-${version}.${arch}.rpm',
     packageName: PACKAGED_APP_NAME,
     publish: null,
     afterInstall: 'build/linux-after-install.sh',
@@ -848,6 +883,21 @@ const config = {
       : '${productName}-Setup-${version}.${ext}',
   },
   beforePack: async (context) => {
+    const latexTargets =
+      context.electronPlatformName === 'darwin'
+        ? ['darwin-arm64/tectonic', 'darwin-x64/tectonic']
+        : context.electronPlatformName === 'win32'
+          ? ['win32-x64/tectonic.exe']
+          : []
+    for (const target of latexTargets) {
+      if (!existsSync(join(__dirname, '../../.local/latex', target))) {
+        throw new Error(
+          'LaTeX engine missing: ' +
+            target +
+            '; run the platform dist script or npm run latex:install first',
+        )
+      }
+    }
     ensurePlatformHelpers()
     assertExtraResourceSources()
     ensureThirdPartyNotices()

@@ -40,6 +40,7 @@ export interface RibbonProps {
   closeMenusSignal: number
   onSave(): void
   onSaveAs(): void
+  onExportPdf(): void
   onFind(): void
   onFontScale(scale: number): void
   onFontStep(dir: 1 | -1): void
@@ -148,6 +149,18 @@ export function Ribbon(p: RibbonProps) {
                 }}
               >
                 {t('saveAs')} <span className="file-menu-key">Ctrl+Shift+S</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-action="export-pdf"
+                disabled={off}
+                onClick={() => {
+                  setFileOpen(false)
+                  p.onExportPdf()
+                }}
+              >
+                {t('exportPdf')}
               </button>
             </div>
           )}

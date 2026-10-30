@@ -1,3 +1,4 @@
+import { mathFallbackFamily } from './math-font-fallback'
 /**
  * System font metrics (main process) — parse real font files with opentype.js and inject them
  * into pptx-render's OpentypeMetrics, replacing heuristic estimation for accurate line
@@ -1668,6 +1669,15 @@ export function createSystemFontMetrics(): FontMetricsProvider {
     style: RunStyle,
   ): string | undefined => {
     const lacks = (probe: string) => !e || e.font.charToGlyphIndex?.(probe) === 0
+    const mathFamily = mathFallbackFamily(
+      text,
+      (ch) => !lacks(ch),
+      (family, ch) => {
+        const face = resolveEntry({ ...style, fontFamily: family })
+        return !!face && !face.substituted && !!face.font.charToGlyphIndex?.(ch)
+      },
+    )
+    if (mathFamily) return mathFamily
     if (style.substScript === 'ko' && /[가-힣]/.test(text) && lacks('가')) return 'Malgun Gothic'
     if (style.substScript === 'ja' && /[぀-ヿ]/.test(text) && lacks('あ')) return 'Yu Gothic'
     // Geometric bullets the face lacks draw in Arial, PowerPoint's linked symbol font (its ● is

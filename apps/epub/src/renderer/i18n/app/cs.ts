@@ -7,6 +7,8 @@ export const cs = {
   tabHome: 'Domů',
   tabView: 'Zobrazení',
   save: 'Uložit',
+  exportPdf: 'Exportovat jako PDF…',
+  pdfFailed: 'Dokument se nepodařilo exportovat do PDF.',
   saveAs: 'Uložit jako…',
   saving: 'Ukládání…',
   saved: 'Uloženo',

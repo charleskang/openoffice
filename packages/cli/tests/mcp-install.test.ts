@@ -107,14 +107,14 @@ describe('genoffice mcp install', () => {
 
     writeFileSync(
       file,
-      '[mcp_servers.ieumoffice]\ncommand = "/old/IeumOffice.app/Contents/Resources/cli/ieumoffice"\nargs = ["mcp"]\n\n' +
+      '[mcp_servers.ieumoffice]\ncommand = "/old/OfficeMax.app/Contents/Resources/cli/ieumoffice"\nargs = ["mcp"]\n\n' +
         '[mcp_servers.ieumoffice.env]\nFOO = "1"\n\n[mcp_servers.other]\ncommand = "npx"\n\n[projects."/tmp/x"]\ntrust_level = "trusted"\n',
     )
     const listed = await run(['mcp', 'list', '--json'], { env: m.env })
     expect(listed.json().detail.agents.find((a: any) => a.agent === 'codex')).toMatchObject({
       status: 'stale',
       registered: true,
-      command: '/old/IeumOffice.app/Contents/Resources/cli/ieumoffice',
+      command: '/old/OfficeMax.app/Contents/Resources/cli/ieumoffice',
     })
     const replaced = await run(['mcp', 'install', 'codex', '--json'], { env: m.env })
     expect(replaced.code).toBe(0)

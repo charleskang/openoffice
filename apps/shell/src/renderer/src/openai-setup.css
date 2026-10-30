@@ -1,0 +1,21 @@
+.openai-setup .set-field {
+  display: grid;
+  grid-template-columns: minmax(72px, 20%) minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+}
+
+.openai-setup .set-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.openai-other-settings > summary::before {
+  content: '›';
+  font-size: 18px;
+  transition: transform 0.15s ease;
+}
+
+.openai-other-settings[open] > summary::before {
+  transform: rotate(90deg);
+}

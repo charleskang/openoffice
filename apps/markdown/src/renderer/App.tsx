@@ -46,6 +46,7 @@ import { renameAction } from '../shared/rename-mode'
 import { readSourceText, writeSourceText, type SourceTextFormat } from '../shared/source-text'
 import { startRecoveryCopies } from './recovery-copy'
 import { PlainTextEditor, type PlainTextEditorHandle } from './source/PlainTextEditor'
+import { LatexWorkspace } from './latex/LatexWorkspace'
 import { buildExtensions } from './editor/extensions'
 import { tiptapFindTarget } from './editor/findTarget'
 import { collectOutline, type OutlineItem } from './editor/outline'
@@ -73,6 +74,8 @@ import { addQueueAnchor, clearQueueAnchors, removeQueueAnchors } from './editor/
 import { DOCX_MAX_IMAGE_PX, exportDocxBytes } from './export/docxExport'
 import { decodeImageDataUrl, toDocxImage } from './export/exportImage'
 import { buildPrintHtml } from './export/printHtml'
+import { pdfExportText } from './i18n/pdf-export'
+import { latexText } from './i18n/strings-latex'
 import { diagramSvgToPng, renderDiagram } from './editor/diagrams'
 import type { DiagramLanguage } from './editor/diagrams'
 import type { ExportFormat, SaveMode } from '../shared/ipc'
@@ -182,7 +185,7 @@ export default function App() {
   const [aiOpen, setAiOpen] = useState(() => aiPanelInitiallyOpen('mdapp.showAi'))
   // In a split, a secondary pane's panel is forced to the rail; the focus pane keeps its own state
   const { role: paneRole, requestFocus } = useSplitPaneRole()
-  const aiPanelOpen = effectiveAiPanelOpen(aiOpen, paneRole)
+  const aiPanelOpen = textMode !== 'latex' && effectiveAiPanelOpen(aiOpen, paneRole)
   // the sidebar switch is a soft hide; it closes the panel when it turns off
   const aiSidebarEnabled = useAiSidebarEnabled(setAiOpen)
   const [aiPreset, setAiPreset] = useState<AiPreset | null>(null)
@@ -803,8 +806,61 @@ export default function App() {
   /** `outPath` (headless export only) skips the save dialog; resolves true when a file was written. */
   const runExport = useCallback(
     async (format: ExportFormat, outPath?: string) => {
-      // a source file has no rendered document to export
-      if (sourceMode) return false
+      if (sourceMode) {
+        if (format !== 'pdf' || statusRef.current !== 'ready' || printingRef.current) return false
+        printingRef.current = true
+        try {
+          const path = filePathRef.current
+          const suggestedName = path?.replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '') || 'Untitled'
+          const project =
+            path && /\.(tex|ltx|bib|sty|cls|bst)$/i.test(path)
+              ? await window.markdownApi.latexProject()
+              : null
+          let result
+          if (path && (/\.(tex|ltx)$/i.test(path) || project)) {
+            const built = await window.markdownApi.compileLatex({
+              path,
+              text: sourceTextRef.current,
+            })
+            if (!built.ok) {
+              window.alert(
+                latexText(
+                  lang,
+                  built.kind === 'missing-engine' ? 'missingEngine' : 'compileError',
+                ) +
+                  '\n' +
+                  built.log,
+              )
+              return false
+            }
+            result = await window.markdownApi.exportPdf({
+              pdf: built.pdf,
+              suggestedName,
+              ...(outPath ? { outPath } : {}),
+            })
+          } else {
+            const root = document.createElement('div'),
+              pre = document.createElement('pre')
+            pre.textContent = sourceTextRef.current
+            pre.style.breakInside = 'auto'
+            pre.style.overflowWrap = 'anywhere'
+            root.appendChild(pre)
+            result = await window.markdownApi.exportPdf({
+              html: buildPrintHtml(root, suggestedName),
+              suggestedName,
+              ...(outPath ? { outPath } : {}),
+            })
+          }
+          if (!result.ok) throw new Error(result.error)
+          return !('canceled' in result)
+        } catch (error) {
+          window.alert(pdfExportText(lang, 'pdfFailed') + '\n' + String(error))
+          return false
+        } finally {
+          printingRef.current = false
+        }
+      }
+      flushSource()
       const current = editorRef.current
       if (!current || statusRef.current !== 'ready') return false
       const suggestedName =
@@ -857,7 +913,7 @@ export default function App() {
             suggestedName,
             ...(outPath ? { outPath } : {}),
           })
-          if (!result.ok) console.error('[markdown] pdf export failed:', result.error)
+          if (!result.ok) window.alert(pdfExportText(lang, 'pdfFailed') + '\n' + result.error)
           return result.ok && !('canceled' in result)
         }
         const loadImage = async (src: string) => {
@@ -890,7 +946,7 @@ export default function App() {
         return false
       }
     },
-    [sourceMode],
+    [sourceMode, lang, flushSource],
   )
 
   // Headless export mode (--headless-export): this renderer lives in a hidden
@@ -1370,6 +1426,7 @@ export default function App() {
         spellcheck={spellcheck}
         onToggleSpellcheck={() => setSpellcheck((v) => !v)}
         sourceMode={sourceMode}
+        aiEnabled={textMode !== 'latex'}
         sourceHistory={sourceMode ? sourceHistory : undefined}
         aiOpen={aiOpen}
         onToggleAi={() => setAiOpen((v) => !v)}
@@ -1384,7 +1441,11 @@ export default function App() {
         }}
       />
       {status === 'loading' && <div className="center-note">{t('loading')}</div>}
-      <div className="app-main" style={status === 'ready' ? undefined : { display: 'none' }}>
+      <div
+        className="app-main"
+        data-text-mode={textMode}
+        style={status === 'ready' ? undefined : { display: 'none' }}
+      >
         <div
           className={`ai-dock${aiPanelOpen ? '' : ' collapsed'}${
             !aiSidebarEnabled && !aiPanelOpen ? ' ai-dock-off' : ''
@@ -1401,7 +1462,7 @@ export default function App() {
             </button>
           )}
           {/* mounted only after the file is loaded so chat history resolves against the real path */}
-          {status === 'ready' && (
+          {status === 'ready' && textMode !== 'latex' && (
             <AiPanel
               deps={aiDeps}
               filePath={filePath}
@@ -1448,19 +1509,32 @@ export default function App() {
               EditorContent tears it down, so the canvas stays mounted and only
               hidden while SourcePane sits beside it. */}
           {sourceMode ? (
-            <div className="source-editor">
-              <PlainTextEditor
-                ref={sourceRef}
-                initialText={sourceTextRef.current}
-                mode={textMode === 'json' ? 'json' : 'plain'}
-                spellcheck={spellcheck}
-                onChange={(text) => {
-                  sourceTextRef.current = text
-                  setSourceRev((n) => n + 1)
-                  markDirty()
-                }}
-              />
-            </div>
+            <LatexWorkspace
+              enabled={textMode === 'latex'}
+              path={filePath}
+              source={sourceTextRef.current}
+              onExportPdf={() => runExport('pdf')}
+              onJump={(line) => sourceRef.current?.goToLine(line)}
+              onApplySource={(text, expected, expectedPath) => {
+                if (filePathRef.current !== expectedPath || sourceTextRef.current !== expected)
+                  return false
+                return sourceRef.current?.applyText(text) ?? false
+              }}
+            >
+              <div className="source-editor" data-source-mode={textMode}>
+                <PlainTextEditor
+                  ref={sourceRef}
+                  initialText={sourceTextRef.current}
+                  mode={textMode === 'markdown' ? 'plain' : textMode}
+                  spellcheck={spellcheck}
+                  onChange={(text) => {
+                    sourceTextRef.current = text
+                    setSourceRev((n) => n + 1)
+                    markDirty()
+                  }}
+                />
+              </div>
+            </LatexWorkspace>
           ) : (
             <>
               <div
@@ -1488,6 +1562,7 @@ export default function App() {
                   {t(imageExportStatus.key, imageExportStatus.params)}
                 </span>
               )}
+              {textMode === 'latex' && <span className="status-item">LaTeX</span>}
               {fileName && <span className="status-item status-file">{fileName}</span>}
             </div>
             <div className="status-right">

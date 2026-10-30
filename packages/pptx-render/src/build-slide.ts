@@ -798,7 +798,15 @@ function buildTable(
         ...(rowSpan > 1 ? { rowSpan } : {}),
         // PowerPoint anchors a cell's tiled picture to the table box, not the cell: each
         // cell shows the part of the picture under it (photo-mosaic layout)
-        fill: resolveFill(cell.fill, vp, media, { x: -x, y: -y, w: totalW, h: totalH }),
+        fill: resolveFill(
+          cell.equationPreviewFill &&
+            !cell.text?.paragraphs.some((p) => p.runs.some((run) => run.text))
+            ? cell.equationPreviewFill
+            : cell.fill,
+          vp,
+          media,
+          { x: -x, y: -y, w: totalW, h: totalH },
+        ),
       }
       // cell3D: PowerPoint darkens the face and shades four bevel bands; only a solid
       // fill has a base color to shade (picture/gradient cells keep their plain fill)

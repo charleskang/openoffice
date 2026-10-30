@@ -4,6 +4,7 @@ import type { AiSettings, AiStreamChunk, AiStreamRequest } from '@genoffice/ai-p
 import type { AiToolCapabilities } from '@genoffice/ai-search'
 import type { ExportImageMime } from './export-image-mime'
 import type { SubscriptionApi } from './subscription-api'
+import type { LatexApi } from './latex'
 
 export const MAX_PASTED_IMAGE_BYTES = 50 * 1024 * 1024
 
@@ -291,8 +292,9 @@ export interface ExportOdtRequest {
 }
 
 export interface ExportPdfRequest {
-  /** self-contained print HTML */
-  html: string
+  /** Self-contained print HTML, or compiled LaTeX PDF bytes. */
+  html?: string
+  pdf?: number[] | Uint8Array
   suggestedName: string
   /** headless export mode only: write here instead of opening the save dialog */
   outPath?: string
@@ -313,7 +315,7 @@ export interface ImageData {
 
 /** API exposed by preload to the renderer (window.markdownApi) */
 import type { MarkdownTheme } from './markdown-theme'
-export interface MarkdownApi {
+export interface MarkdownApi extends LatexApi {
   /** Take the md path pending for this view (queued at tab creation); null = new untitled document */
   consumePending(): Promise<string | null>
   /** A new untitled tab's starting text (a conversion's result), taken once; null otherwise */

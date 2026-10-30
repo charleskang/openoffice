@@ -409,6 +409,8 @@ export const AI_PROVIDERS: AiProviderMeta[] = [
  * except providers listed in `defaultApiKeys` (e.g. an app-specific
  * preconfigured Anthropic key). Callers own that policy; this package
  * has no hardcoded keys.
+ * OfficeMax starts on the direct OpenAI API; requests stay blocked until
+ * the user supplies a key and model. Explicit automatic selection is unchanged.
  */
 export function defaultAiSettings(
   defaultApiKeys?: Partial<Record<AiProviderId, string>>,
@@ -423,7 +425,7 @@ export function defaultAiSettings(
     }
   }
   return {
-    provider: 'auto',
+    provider: 'openai',
     providers,
     media: defaultAiMediaSettings(),
     search: defaultAiSearchSettings(),

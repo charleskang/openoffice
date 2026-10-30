@@ -7,6 +7,8 @@ export const he = {
   tabHome: 'בית',
   tabView: 'תצוגה',
   save: 'שמירה',
+  exportPdf: 'ייצוא כ-PDF…',
+  pdfFailed: 'לא ניתן היה לייצא את המסמך כ-PDF.',
   saveAs: 'שמירה בשם…',
   saving: 'שומר…',
   saved: 'נשמר',

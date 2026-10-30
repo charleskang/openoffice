@@ -1,3 +1,9 @@
+import { rm } from 'node:fs/promises'
+import { rename } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { isLatexSourcePath, LATEX_EXTENSIONS } from '../shared/text-mode'
+import { decodeLatexSource } from '../shared/source-text'
+import { registerLatexIpc } from './latex-ipc'
 import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
@@ -41,6 +47,7 @@ import { sharedSubscriptionStatuses } from '@genoffice/ai-provider/subscription'
 import { generateImageTool, documentMediaRoots, withMediaCallSignal } from '@genoffice/ai-search'
 import { ImageExportSessions } from './image-export'
 import { printMarkdownPdf } from './print-pdf'
+import { compiledPdfBytes } from './pdf-payload'
 import { atomicWriteFile } from './atomic-write'
 import {
   copyImageIntoOwnedAssets,
@@ -532,6 +539,10 @@ export function setMarkdownFileSavedHook(hook: (wc: WebContents, path: string) =
 
 /** Fired after a "convert & open in Docs" export — the shell routes the new .docx to a docs tab */
 let docxExportedHook: ((path: string) => void) | null = null
+let latexProjectOpenHook: ((path: string) => void) | undefined
+export function setMarkdownLatexProjectOpenHook(hook: (path: string) => void): void {
+  latexProjectOpenHook = hook
+}
 /** One marked cache session per app process. Old crash leftovers are removed after seven days. */
 let conversionSessionPromise: Promise<string> | null = null
 
@@ -800,7 +811,9 @@ async function resolveSaveTarget(
   const picked = await showSaveDialogWithMemory(dialog, win, {
     title: tm('dlgSaveTitle'),
     defaultPath,
-    filters: [{ name: tm('filterMarkdown'), extensions: ['md', 'markdown', 'txt', 'json'] }],
+    filters: isLatexSourcePath(defaultPath)
+      ? [{ name: 'LaTeX', extensions: [...LATEX_EXTENSIONS, 'bib', 'sty', 'cls', 'bst'] }]
+      : [{ name: tm('filterMarkdown'), extensions: ['md', 'markdown', 'txt', 'json'] }],
   })
   if (picked.canceled || !picked.filePath) return 'canceled'
   return picked.filePath
@@ -870,6 +883,10 @@ function registerMarkdownIpc(): void {
   ipcRegistered = true
 
   registerImageProtocol()
+  registerLatexIpc(
+    (id) => savePathByWc.get(id) ?? openPathByWc.get(id),
+    (path) => latexProjectOpenHook?.(path),
+  )
 
   ipcMain.handle(MARKDOWN_CHANNELS.consumePending, (e) => {
     const pending = openPathByWc.get(e.sender.id) ?? null
@@ -904,7 +921,8 @@ function registerMarkdownIpc(): void {
     if (typeof path !== 'string' || !allowedByWc.get(e.sender.id)?.has(path)) {
       throw new Error('markdown: path not granted to this view')
     }
-    const text = await readFile(path, 'utf8')
+    const bytes = await readFile(path)
+    const text = isLatexSourcePath(path) ? decodeLatexSource(bytes) : bytes.toString('utf8')
     // The reader's copy: this view's save guard compares against this state
     await rememberDiskState(e.sender.id, path)
     return text
@@ -986,9 +1004,10 @@ function registerMarkdownIpc(): void {
       ) {
         return done({ ok: false, error: 'external-modified' })
       }
-      const pendingAtRequest = pathAtRequest
-        ? await pendingOwnedAssetsForDocument(pathAtRequest)
-        : []
+      const pendingAtRequest =
+        pathAtRequest && !isLatexSourcePath(pathAtRequest)
+          ? await pendingOwnedAssetsForDocument(pathAtRequest)
+          : []
       try {
         const suggestedName =
           typeof request.suggestedName === 'string' ? request.suggestedName : undefined
@@ -996,16 +1015,17 @@ function registerMarkdownIpc(): void {
         if (target === 'canceled') return done({ ok: true, canceled: true })
         if (!target) return done({ ok: false, error: 'markdown: no save target' })
         const currentPath = pathAtRequest
+        const sourceOnly = isLatexSourcePath(currentPath ?? target)
         const isNewPath = currentPath !== target
-        const imageSources = [...(request.imageSources ?? [])]
+        const imageSources = sourceOnly ? [] : [...(request.imageSources ?? [])]
         const knownImageSources = new Set(imageSources)
-        for (const source of extractMarkdownImageSources(request.text)) {
+        for (const source of sourceOnly ? [] : extractMarkdownImageSources(request.text)) {
           if (knownImageSources.has(source)) continue
           knownImageSources.add(source)
           imageSources.push(source)
         }
         const prepared =
-          currentPath && resolve(dirname(currentPath)) !== resolve(dirname(target))
+          !sourceOnly && currentPath && resolve(dirname(currentPath)) !== resolve(dirname(target))
             ? await prepareAssetsForSaveAs(currentPath, target, request.text, imageSources)
             : null
         const textToWrite = prepared?.text ?? request.text
@@ -1034,11 +1054,18 @@ function registerMarkdownIpc(): void {
           : currentPath && resolve(currentPath) === resolve(target)
             ? pendingAtRequest
             : []
-        const reconciled = await reconcileOwnedAssets(target, savedImageSources, { pendingNames })
+        const reconciled = sourceOnly
+          ? { errors: [] }
+          : await reconcileOwnedAssets(target, savedImageSources, { pendingNames })
         if (reconciled.errors.length > 0) {
           console.warn('[markdown] asset reconciliation incomplete:', reconciled.errors)
         }
-        if (mode === 'saveAs' && currentPath && resolve(currentPath) !== resolve(target)) {
+        if (
+          !sourceOnly &&
+          mode === 'saveAs' &&
+          currentPath &&
+          resolve(currentPath) !== resolve(target)
+        ) {
           const sourceResolved = await resolveSourcePendingAfterSaveAs(
             currentPath,
             pendingAtRequest,
@@ -1312,7 +1339,11 @@ function registerMarkdownIpc(): void {
   ipcMain.handle(
     MARKDOWN_CHANNELS.exportPdf,
     async (e, request: ExportPdfRequest): Promise<ExportResult> => {
-      if (typeof request?.html !== 'string' || !request.html) {
+      const compiled = compiledPdfBytes(request?.pdf)
+      if (
+        !compiled &&
+        (request?.pdf !== undefined || typeof request?.html !== 'string' || !request.html)
+      ) {
         return { ok: false, error: 'markdown: bad export request' }
       }
       const safeName =
@@ -1337,8 +1368,15 @@ function registerMarkdownIpc(): void {
             )
       if (picked.canceled || !picked.filePath) return { ok: true, canceled: true }
       try {
-        const pdf = await printMarkdownPdf(request.html)
-        await writeFile(picked.filePath, pdf)
+        if (!/\.pdf$/i.test(picked.filePath)) throw new Error('Choose a PDF file name.')
+        const pdf = compiled ?? (await printMarkdownPdf(request.html!))
+        const temporary = picked.filePath + '.pdf-export-' + randomUUID()
+        try {
+          await writeFile(temporary, pdf, { flag: 'wx' })
+          await rename(temporary, picked.filePath)
+        } finally {
+          await rm(temporary, { force: true })
+        }
         openExportedPdf(picked.filePath)
         return { ok: true, path: picked.filePath }
       } catch (err) {

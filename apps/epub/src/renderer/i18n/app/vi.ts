@@ -7,6 +7,8 @@ export const vi = {
   tabHome: 'Trang đầu',
   tabView: 'Xem',
   save: 'Lưu',
+  exportPdf: 'Xuất dưới dạng PDF…',
+  pdfFailed: 'Không thể xuất tài liệu dưới dạng PDF.',
   saveAs: 'Lưu thành…',
   saving: 'Đang lưu…',
   saved: 'Đã lưu',

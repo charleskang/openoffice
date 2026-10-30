@@ -1516,4 +1516,9 @@ export const ms = {
   appVisualFlipV: 'Balikkan Menegak',
   appVisualFlipH: 'Balikkan Mendatar',
   appCtxPasteVisual: 'Tampal Gambar atau Bentuk',
+  appEmbeddedChartHint:
+    'Data carta untuk {name}. Simpan untuk mengemas kini carta, kemudian simpan pembentangan.',
+  appEmbeddedChartReturn: 'Kembali ke slaid',
+  appEmbeddedChartSaveError:
+    'Carta tidak dapat dikemas kini. Pembentangan atau julat data mungkin berubah. Simpan data dengan Simpan sebagai, kemudian buka semula editor.',
 } satisfies Record<keyof typeof zh, string>

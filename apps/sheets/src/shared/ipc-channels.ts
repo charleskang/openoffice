@@ -69,6 +69,7 @@ export const IPC_CHANNELS = {
   readPivotDefinition: 'workbook:read-pivot-definition',
   readLocalImage: 'shell:read-local-image',
   closeWorkbook: 'workbook:close',
+  showChartPresentation: 'workbook:show-chart-presentation',
   saveWorkbook: 'workbook:save',
   /** Chunked upload of a large save's cell edits, consumed by the next save */
   saveEditsBegin: 'workbook:save-edits-begin',

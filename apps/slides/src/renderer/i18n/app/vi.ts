@@ -256,4 +256,5 @@ export const vi = {
   appStatusSummaryZoomInserted: 'Đã chèn trang chiếu Thu phóng tóm tắt với {count} ô thu nhỏ',
   appSectionSummary: 'Phần tóm tắt',
   appSectionN: 'Phần {n}',
+  appChartWorkbookOpenError: 'Không thể mở dữ liệu biểu đồ. Hãy kiểm tra bảng tính được nhúng.',
 } satisfies Record<keyof typeof zh, string>

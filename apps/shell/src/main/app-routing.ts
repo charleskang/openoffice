@@ -12,7 +12,7 @@ const MINDMAP_RE = /\.xmind$/i
 const HWP_RE = /\.hwpx?$/i
 const EPUB_RE = /\.epub$/i
 
-const TEXT_RE = /\.(md|markdown|txt|json)$/i
+const TEXT_RE = /\.(md|markdown|txt|json|tex|ltx|bib|sty|cls|bst)$/i
 
 export { DOCX_RE, ODT_RE, XLSX_RE, PPTX_RE, PDF_RE, HTML_RE, MINDMAP_RE, HWP_RE, EPUB_RE, TEXT_RE }
 

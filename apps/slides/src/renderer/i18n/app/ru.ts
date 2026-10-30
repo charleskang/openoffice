@@ -261,4 +261,6 @@ export const ru = {
   appStatusSummaryZoomInserted: 'Вставлен слайд сводного масштабирования с {count} плитками',
   appSectionSummary: 'Сводный раздел',
   appSectionN: 'Раздел {n}',
+  appChartWorkbookOpenError:
+    'Не удалось открыть данные диаграммы. Проверьте наличие встроенной таблицы.',
 } satisfies Record<keyof typeof zh, string>

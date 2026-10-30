@@ -1453,4 +1453,8 @@ export const he = {
   appVisualFlipV: 'הפוך אנכית',
   appVisualFlipH: 'הפוך אופקית',
   appCtxPasteVisual: 'הדבק תמונה או צורה',
+  appEmbeddedChartHint: 'נתוני התרשים של {name}. יש לשמור לעדכון התרשים, ואז לשמור את המצגת.',
+  appEmbeddedChartReturn: 'חזרה לשקופיות',
+  appEmbeddedChartSaveError:
+    'לא ניתן לעדכן את התרשים. ייתכן שהמצגת או טווח הנתונים השתנו. יש לשמור את הנתונים באמצעות שמירה בשם ולפתוח מחדש את העורך.',
 } satisfies Record<keyof typeof zh, string>

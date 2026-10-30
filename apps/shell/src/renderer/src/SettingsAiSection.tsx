@@ -14,7 +14,9 @@ import {
 import type { Lang } from '@genoffice/i18n'
 import { AI_SUBSCRIPTION_PROVIDERS, selectAiProvider } from '@genoffice/ai-provider/browser'
 import type { AiSettings, AiSubscriptionProviderId } from '@genoffice/ai-provider/browser'
-import { FreeAiCards } from './FreeAiCards'
+import { FreeAiCards, useAiSettings } from './FreeAiCards'
+import { OpenAiSetup } from './OpenAiSetup'
+import { openAiText } from './i18n/strings-openai'
 import type { TFunc } from './locale'
 import type { SubscriptionConnection } from './subscription-client'
 import {
@@ -32,10 +34,8 @@ import {
 import type { AiSelectionChoice, SubscriptionAccountAction } from './settings-ai'
 
 // ── AI section of the settings dialog ─────────────────────
-// What everyone sees is the subscription connection: the two connect cards and
-// which AI to use. Everything that takes a key sits behind "Advanced", closed
-// until asked for. The controls here save at once; the key panes keep their
-// own Save button.
+// The direct OpenAI API form comes first. Other connections and advanced
+// controls remain available in a collapsed section. Key forms save explicitly.
 
 /** the two key areas inside Advanced; one is mounted at a time, each with its own draft */
 export type AdvancedTab = 'model' | 'media'
@@ -52,6 +52,8 @@ export function SubscriptionSummary({
   connection: SubscriptionConnection
   onManage: () => void
 }) {
+  const settings = useAiSettings()
+  if (settings?.provider === 'openai') return <OpenAiSetup />
   return (
     <>
       <h3 className="set-pane-title">{t('setSecAccount')}</h3>
@@ -253,226 +255,234 @@ export function AiSection({
 
   return (
     <>
-      <h3 className="set-pane-title">{t('setSecAi')}</h3>
-      <h4 className="set-pane-subtitle set-sub-title">{t('setSubTitle')}</h4>
-      <div className="set-field-desc set-ai-note">{aiSubscriptionText(lang, 'connectBody')}</div>
-      <div className="set-sub-cards">
-        {AI_SUBSCRIPTION_PROVIDERS.map((provider) => (
-          <Fragment key={provider}>
-            <AiSubscriptionCard
-              status={statuses[provider]}
-              lang={lang}
-              disabled={busy}
-              onInstall={connection.install}
-              onUpdate={connection.update}
-              onCancelLogin={connection.cancelLogin}
-              onLogin={connection.login}
-              onRecheck={connection.recheck}
-              onAcceptMetered={acceptMetered}
-              onOpenInstallHelp={connection.openInstallHelp}
-              showAccount
-              onSwitchAccount={(id) => setAccountAsked({ provider: id, action: 'switch' })}
-              onLogout={(id) => setAccountAsked({ provider: id, action: 'logout' })}
-            />
-            {accountAsked?.provider === provider && (
-              <div
-                className="set-adv-confirm set-sub-confirm"
-                role="alertdialog"
-                aria-label={accountActionLabel}
-                data-provider={provider}
-              >
-                <div className="set-field-desc set-adv-warning">
-                  {t(
-                    accountAsked.action === 'logout'
-                      ? 'setSubLogoutConfirm'
-                      : 'setSubSwitchConfirm',
-                    { program: subscriptionProgramName(provider) },
-                  )}
-                </div>
-                <div className="set-btn-row">
-                  <button className="set-btn" onClick={() => setAccountAsked(null)}>
-                    {t('cancel')}
-                  </button>
-                  <button className="set-btn danger" onClick={runAccountAction}>
-                    {accountActionLabel}
-                  </button>
-                </div>
-              </div>
-            )}
-            {failed[provider] === 'logout' ? (
-              <div className="set-sub-failed" role="alert" data-provider={provider}>
-                <span>{t('setSubLogoutFailed')}</span>
-              </div>
-            ) : (
-              failed[provider] && (
-                <div className="set-sub-failed" role="alert" data-provider={provider}>
-                  <span>
+      <OpenAiSetup />
+      <details className="openai-other-settings" open={openTab ? true : undefined}>
+        <summary className="set-adv-toggle">{openAiText(lang, 'other')}</summary>
+        <h3 className="set-pane-title">{t('setSecAi')}</h3>
+        <h4 className="set-pane-subtitle set-sub-title">{t('setSubTitle')}</h4>
+        <div className="set-field-desc set-ai-note">{aiSubscriptionText(lang, 'connectBody')}</div>
+        <div className="set-sub-cards">
+          {AI_SUBSCRIPTION_PROVIDERS.map((provider) => (
+            <Fragment key={provider}>
+              <AiSubscriptionCard
+                status={statuses[provider]}
+                lang={lang}
+                disabled={busy}
+                onInstall={connection.install}
+                onUpdate={connection.update}
+                onCancelLogin={connection.cancelLogin}
+                onLogin={connection.login}
+                onRecheck={connection.recheck}
+                onAcceptMetered={acceptMetered}
+                onOpenInstallHelp={connection.openInstallHelp}
+                showAccount
+                onSwitchAccount={(id) => setAccountAsked({ provider: id, action: 'switch' })}
+                onLogout={(id) => setAccountAsked({ provider: id, action: 'logout' })}
+              />
+              {accountAsked?.provider === provider && (
+                <div
+                  className="set-adv-confirm set-sub-confirm"
+                  role="alertdialog"
+                  aria-label={accountActionLabel}
+                  data-provider={provider}
+                >
+                  <div className="set-field-desc set-adv-warning">
                     {t(
-                      failed[provider] === 'install' ? 'setSubInstallFailed' : 'setSubLoginFailed',
+                      accountAsked.action === 'logout'
+                        ? 'setSubLogoutConfirm'
+                        : 'setSubSwitchConfirm',
+                      { program: subscriptionProgramName(provider) },
                     )}
-                  </span>
-                  <button
-                    type="button"
-                    className="set-link"
-                    onClick={() => connection.openInstallHelp(provider)}
-                  >
-                    {aiSubscriptionText(lang, 'actionInstallHelp')}
-                  </button>
+                  </div>
+                  <div className="set-btn-row">
+                    <button className="set-btn" onClick={() => setAccountAsked(null)}>
+                      {t('cancel')}
+                    </button>
+                    <button className="set-btn danger" onClick={runAccountAction}>
+                      {accountActionLabel}
+                    </button>
+                  </div>
                 </div>
-              )
-            )}
-          </Fragment>
-        ))}
-      </div>
-      <h4 className="set-pane-subtitle set-sub-title free-ai-title" id="set-free-ai">
-        {t('setFreeTitle')}
-      </h4>
-      <div className="set-field-desc set-ai-note">{t('setFreeDesc')}</div>
-      <FreeAiCards t={t} />
-      {settings && (
-        <>
-          <div className="set-field">
-            <div className="set-field-text">
-              <div className="set-field-stack">
-                <label className="set-field-label">{t('setAiUse')}</label>
-                <div className="set-field-desc">{t('setAiUseDesc')}</div>
-              </div>
-            </div>
-            <Dropdown
-              className="set-dd"
-              value={aiSelectionValue(settings)}
-              ariaLabel={t('setAiUse')}
-              options={choices.map((choice) => ({
-                value: choice.value,
-                label: choiceLabel(choice, t, lang),
-                disabled: choice.unavailable,
-              }))}
-              onPick={(value) => {
-                const choice = choices.find((c) => c.value === value)
-                if (choice) change((current) => withAiSelection(current, choice))
-              }}
-            />
-          </div>
-          {blocked && (
-            <div
-              className="set-field-desc set-ai-note"
-              data-ai-blocked={running?.connected ? '' : running?.reason}
-            >
-              {aiSubscriptionText(lang, blocked.titleKey, { provider: blocked.providerName ?? '' })}
-            </div>
-          )}
-          {running?.connected && running.metered && <AiMeteredWarning lang={lang} />}
-          {codexSelectable && <AiCodexNotice lang={lang} />}
-          <div className="set-field">
-            <div className="set-field-text">
-              <label className="set-field-label">{t('setAiNotice')}</label>
-            </div>
-            <button
-              className="set-btn"
-              aria-expanded={noticeOpen}
-              onClick={() => setNoticeOpen((open) => !open)}
-            >
-              {noticeOpen ? aiSubscriptionText(lang, 'actionDismiss') : t('setAiNoticeView')}
-            </button>
-          </div>
-          {noticeOpen && (
-            <AiFirstConnectionNotice lang={lang} codexKeepsHistory={CODEX_MAY_KEEP_HISTORY} />
-          )}
-        </>
-      )}
-      <button
-        type="button"
-        className="set-adv-toggle"
-        aria-expanded={advancedOpen}
-        onClick={() => setAdvancedOpen((open) => !open)}
-      >
-        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-          <path
-            d="M3 1.5 7 5 3 8.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        {t('setAiAdvanced')}
-      </button>
-      <div className="set-field-desc">{t('setAiAdvancedDesc')}</div>
-      {advancedOpen && (
-        <>
-          {settings && (
-            <div className="set-field set-field-top">
+              )}
+              {failed[provider] === 'logout' ? (
+                <div className="set-sub-failed" role="alert" data-provider={provider}>
+                  <span>{t('setSubLogoutFailed')}</span>
+                </div>
+              ) : (
+                failed[provider] && (
+                  <div className="set-sub-failed" role="alert" data-provider={provider}>
+                    <span>
+                      {t(
+                        failed[provider] === 'install'
+                          ? 'setSubInstallFailed'
+                          : 'setSubLoginFailed',
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      className="set-link"
+                      onClick={() => connection.openInstallHelp(provider)}
+                    >
+                      {aiSubscriptionText(lang, 'actionInstallHelp')}
+                    </button>
+                  </div>
+                )
+              )}
+            </Fragment>
+          ))}
+        </div>
+        <h4 className="set-pane-subtitle set-sub-title free-ai-title" id="set-free-ai">
+          {t('setFreeTitle')}
+        </h4>
+        <div className="set-field-desc set-ai-note">{t('setFreeDesc')}</div>
+        <FreeAiCards t={t} />
+        {settings && (
+          <>
+            <div className="set-field">
               <div className="set-field-text">
                 <div className="set-field-stack">
-                  <div className="set-field-label">{t('setAiHeadless')}</div>
-                  <div className="set-field-desc">{t('setAiHeadlessDesc')}</div>
-                  {headlessOn && (
-                    <div className="set-field-desc set-adv-warning">
-                      {t('setAiHeadlessWarning')}
-                    </div>
-                  )}
+                  <label className="set-field-label">{t('setAiUse')}</label>
+                  <div className="set-field-desc">{t('setAiUseDesc')}</div>
                 </div>
               </div>
-              <button
-                className="set-switch"
-                role="switch"
-                aria-checked={headlessOn}
-                aria-label={t('setAiHeadless')}
-                onClick={() => {
-                  if (headlessOn) {
-                    change((current) => withHeadlessSubscription(current, false))
-                  } else {
-                    // turning it on goes through the warning first
-                    setHeadlessAsked(true)
-                  }
+              <Dropdown
+                className="set-dd"
+                value={aiSelectionValue(settings)}
+                ariaLabel={t('setAiUse')}
+                options={choices.map((choice) => ({
+                  value: choice.value,
+                  label: choiceLabel(choice, t, lang),
+                  disabled: choice.unavailable,
+                }))}
+                onPick={(value) => {
+                  const choice = choices.find((c) => c.value === value)
+                  if (choice) change((current) => withAiSelection(current, choice))
                 }}
               />
             </div>
-          )}
-          {headlessAsked && !headlessOn && (
-            <div className="set-adv-confirm" role="alertdialog" aria-label={t('setAiHeadless')}>
-              <div className="set-field-desc set-adv-warning">{t('setAiHeadlessWarning')}</div>
-              <div className="set-btn-row">
-                <button className="set-btn" onClick={() => setHeadlessAsked(false)}>
-                  {t('cancel')}
-                </button>
-                <button
-                  className="set-btn danger"
-                  onClick={() => {
-                    setHeadlessAsked(false)
-                    change((current) => withHeadlessSubscription(current, true))
-                  }}
-                >
-                  {t('setAiHeadlessConfirm')}
-                </button>
-              </div>
-            </div>
-          )}
-          {settings && (
-            <ReadUrlTokenField
-              t={t}
-              token={readUrlGithubToken(settings)}
-              onSave={(token) => change((current) => withReadUrlGithubToken(current, token))}
-            />
-          )}
-          <div className="set-adv-tabs" role="tablist" aria-label={t('setAiAdvanced')}>
-            {(['model', 'media'] as const).map((id) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                className={`set-adv-tab${tab === id ? ' active' : ''}`}
-                aria-selected={tab === id}
-                onClick={() => setTab(id)}
+            {blocked && (
+              <div
+                className="set-field-desc set-ai-note"
+                data-ai-blocked={running?.connected ? '' : running?.reason}
               >
-                {t(id === 'model' ? 'setSecAiModel' : 'setSecAiMedia')}
+                {aiSubscriptionText(lang, blocked.titleKey, {
+                  provider: blocked.providerName ?? '',
+                })}
+              </div>
+            )}
+            {running?.connected && running.metered && <AiMeteredWarning lang={lang} />}
+            {codexSelectable && <AiCodexNotice lang={lang} />}
+            <div className="set-field">
+              <div className="set-field-text">
+                <label className="set-field-label">{t('setAiNotice')}</label>
+              </div>
+              <button
+                className="set-btn"
+                aria-expanded={noticeOpen}
+                onClick={() => setNoticeOpen((open) => !open)}
+              >
+                {noticeOpen ? aiSubscriptionText(lang, 'actionDismiss') : t('setAiNoticeView')}
               </button>
-            ))}
-          </div>
-          {advanced(tab)}
-        </>
-      )}
+            </div>
+            {noticeOpen && (
+              <AiFirstConnectionNotice lang={lang} codexKeepsHistory={CODEX_MAY_KEEP_HISTORY} />
+            )}
+          </>
+        )}
+        <button
+          type="button"
+          className="set-adv-toggle"
+          aria-expanded={advancedOpen}
+          onClick={() => setAdvancedOpen((open) => !open)}
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+            <path
+              d="M3 1.5 7 5 3 8.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          {t('setAiAdvanced')}
+        </button>
+        <div className="set-field-desc">{t('setAiAdvancedDesc')}</div>
+        {advancedOpen && (
+          <>
+            {settings && (
+              <div className="set-field set-field-top">
+                <div className="set-field-text">
+                  <div className="set-field-stack">
+                    <div className="set-field-label">{t('setAiHeadless')}</div>
+                    <div className="set-field-desc">{t('setAiHeadlessDesc')}</div>
+                    {headlessOn && (
+                      <div className="set-field-desc set-adv-warning">
+                        {t('setAiHeadlessWarning')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <button
+                  className="set-switch"
+                  role="switch"
+                  aria-checked={headlessOn}
+                  aria-label={t('setAiHeadless')}
+                  onClick={() => {
+                    if (headlessOn) {
+                      change((current) => withHeadlessSubscription(current, false))
+                    } else {
+                      // turning it on goes through the warning first
+                      setHeadlessAsked(true)
+                    }
+                  }}
+                />
+              </div>
+            )}
+            {headlessAsked && !headlessOn && (
+              <div className="set-adv-confirm" role="alertdialog" aria-label={t('setAiHeadless')}>
+                <div className="set-field-desc set-adv-warning">{t('setAiHeadlessWarning')}</div>
+                <div className="set-btn-row">
+                  <button className="set-btn" onClick={() => setHeadlessAsked(false)}>
+                    {t('cancel')}
+                  </button>
+                  <button
+                    className="set-btn danger"
+                    onClick={() => {
+                      setHeadlessAsked(false)
+                      change((current) => withHeadlessSubscription(current, true))
+                    }}
+                  >
+                    {t('setAiHeadlessConfirm')}
+                  </button>
+                </div>
+              </div>
+            )}
+            {settings && (
+              <ReadUrlTokenField
+                t={t}
+                token={readUrlGithubToken(settings)}
+                onSave={(token) => change((current) => withReadUrlGithubToken(current, token))}
+              />
+            )}
+            <div className="set-adv-tabs" role="tablist" aria-label={t('setAiAdvanced')}>
+              {(['model', 'media'] as const).map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  className={`set-adv-tab${tab === id ? ' active' : ''}`}
+                  aria-selected={tab === id}
+                  onClick={() => setTab(id)}
+                >
+                  {t(id === 'model' ? 'setSecAiModel' : 'setSecAiMedia')}
+                </button>
+              ))}
+            </div>
+            {advanced(tab)}
+          </>
+        )}
+      </details>
     </>
   )
 }

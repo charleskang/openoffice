@@ -1556,4 +1556,9 @@ export const it = {
   appVisualFlipV: 'Capovolgi verticalmente',
   appVisualFlipH: 'Capovolgi orizzontalmente',
   appCtxPasteVisual: 'Incolla immagine o forma',
+  appEmbeddedChartHint:
+    'Dati del grafico di {name}. Salvare per aggiornare il grafico, quindi salvare la presentazione.',
+  appEmbeddedChartReturn: 'Torna alle diapositive',
+  appEmbeddedChartSaveError:
+    'Impossibile aggiornare il grafico. La presentazione o l’intervallo potrebbero essere cambiati. Conservare i dati con Salva con nome e riaprire l’editor.',
 } satisfies Record<keyof typeof zh, string>

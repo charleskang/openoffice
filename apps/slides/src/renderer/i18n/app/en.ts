@@ -254,4 +254,6 @@ export const en = {
   appStatusSummaryZoomInserted: 'Summary Zoom slide inserted with {count} tiles',
   appSectionSummary: 'Summary Section',
   appSectionN: 'Section {n}',
+  appChartWorkbookOpenError:
+    'Could not open chart data. Check that the chart has an embedded spreadsheet.',
 } satisfies Record<keyof typeof zh, string>

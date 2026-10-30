@@ -81,6 +81,7 @@ export function ChartBody({
           points={[a.x1, a.y1, a.x2, a.y2]}
           stroke={a.color}
           strokeWidth={a.widthPx}
+          {...(a.dash ? { dash: a.dash } : {})}
         />
       ))}
       {(chart.paths ?? []).map((p, i) => (

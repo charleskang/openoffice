@@ -14,6 +14,7 @@ import {
   parseTheme,
   resolveSchemeColor,
   type OpenedPptx,
+  type ChartWorkbookStructuralOp,
   type Slide,
 } from '@genoffice/pptx-engine'
 import {
@@ -32,6 +33,16 @@ export interface RuntimePaths {
   rendererFilePath?: string | undefined
   /** Shell router used to open exported PDFs in a new GenOffice tab. */
   openGeneratedPath?: (path: string) => boolean
+  openChartWorkbook?: (request: {
+    owner: WebContents
+    key: string
+    title: string
+    bytes: Uint8Array
+    prepare: (
+      bytes: Uint8Array,
+      operations?: readonly ChartWorkbookStructuralOp[],
+    ) => Promise<() => void>
+  }) => Promise<void>
 }
 
 export const runtime: RuntimePaths = {
@@ -45,6 +56,7 @@ export function configureSlidesRuntime(paths: RuntimePaths): void {
   runtime.rendererDevUrl = paths.rendererDevUrl
   runtime.rendererFilePath = paths.rendererFilePath
   runtime.openGeneratedPath = paths.openGeneratedPath
+  runtime.openChartWorkbook = paths.openChartWorkbook
 }
 
 // One session per renderer process (standalone window or shell tab), keyed by webContents.id
@@ -96,6 +108,8 @@ export interface Session {
   historyNotifyScheduled?: boolean
   /** A deck-changed broadcast is already queued for this session (coalesces per task) */
   deckBroadcastScheduled?: boolean
+  /** An edit from an embedded worksheet must also refresh the originating slide view. */
+  deckBroadcastIncludeSingle?: boolean
   /** Monotonic sequence of the last journaled op entry (collab groundwork) */
   opSeq?: number
   /** Applied-op journal, capped ring — the attachment point for a future sync transport */
@@ -231,13 +245,16 @@ export function editorAttachedIds(session: Session): number[] {
  * other. The originating window applies its handler's return value and simply
  * receives the same state again.
  */
-export function scheduleDeckBroadcast(session: Session): void {
+export function scheduleDeckBroadcast(session: Session, includeSingle = false): void {
+  if (includeSingle) session.deckBroadcastIncludeSingle = true
   if (session.deckBroadcastScheduled) return
   session.deckBroadcastScheduled = true
   setImmediate(() => {
     session.deckBroadcastScheduled = false
     const ids = attachedIds(session)
-    if (ids.length < 2) return
+    const includeSingle = session.deckBroadcastIncludeSingle
+    session.deckBroadcastIncludeSingle = false
+    if (ids.length < 2 && !includeSingle) return
     const payload = {
       slides: buildAllRenderSlides(session.opened, session.fitWidthPx),
       size: { cx: session.opened.deck.size.cx, cy: session.opened.deck.size.cy },

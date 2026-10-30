@@ -48,3 +48,6 @@ _scratch-*
 # Local planning and agent state (never committed)
 .dryforge
 .omc
+
+# Verified local LaTeX engine downloads; packaged separately from application source.
+/.local/

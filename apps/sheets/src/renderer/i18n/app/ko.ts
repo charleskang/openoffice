@@ -1535,4 +1535,9 @@ export const ko = {
   appVisualFlipV: '상하 대칭',
   appVisualFlipH: '좌우 대칭',
   appCtxPasteVisual: '그림/도형 붙여넣기',
+  appEmbeddedChartHint:
+    '{name}의 차트 데이터입니다. 저장하면 차트에 반영됩니다. 발표 파일도 저장해 주세요.',
+  appEmbeddedChartReturn: '슬라이드로 돌아가기',
+  appEmbeddedChartSaveError:
+    '차트에 반영하지 못했습니다. 발표 파일이나 데이터 범위가 바뀌었을 수 있습니다. 다른 이름으로 저장해 데이터를 보관한 뒤 데이터 편집기를 다시 열어 주세요.',
 } satisfies Record<keyof typeof zh, string>

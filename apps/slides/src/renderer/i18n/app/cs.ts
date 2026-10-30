@@ -256,4 +256,5 @@ export const cs = {
   appStatusSummaryZoomInserted: 'Vložen souhrnný snímek Zoom s {count} dlaždicemi',
   appSectionSummary: 'Souhrnný oddíl',
   appSectionN: 'Oddíl {n}',
+  appChartWorkbookOpenError: 'Data grafu nelze otevřít. Zkontrolujte, zda obsahuje vložený sešit.',
 } satisfies Record<keyof typeof zh, string>

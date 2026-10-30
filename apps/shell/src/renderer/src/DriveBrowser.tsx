@@ -13,6 +13,7 @@ import iconXlsx from './assets/file-xlsx.svg'
 import iconPptx from './assets/file-pptx.svg'
 import iconPdf from './assets/file-pdf.svg'
 import iconMd from './assets/file-md.svg'
+import iconTex from './assets/file-tex.svg'
 import iconHtml from './assets/file-html.svg'
 import iconMindmap from './assets/file-mindmap.svg'
 import iconHwp from './assets/file-hwp.svg'
@@ -244,7 +245,7 @@ export function DriveBrowser({
 
       <ul className="drive-list" aria-busy={loading}>
         {files.map((entry) => {
-          const icon = ICONS[entry.type]
+          const icon = /\.(tex|ltx)$/i.test(entry.name) ? iconTex : ICONS[entry.type]
           const folder = entry.type === 'folder'
           const unsupported = !folder && !entry.openable
           const note = unsupported

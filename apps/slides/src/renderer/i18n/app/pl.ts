@@ -265,4 +265,6 @@ export const pl = {
   appStatusSummaryZoomInserted: 'Wstawiono slajd powiększenia podsumowania z {count} kafelkami',
   appSectionSummary: 'Sekcja podsumowania',
   appSectionN: 'Sekcja {n}',
+  appChartWorkbookOpenError:
+    'Nie można otworzyć danych wykresu. Sprawdź, czy zawiera osadzony arkusz.',
 } satisfies Record<keyof typeof zh, string>

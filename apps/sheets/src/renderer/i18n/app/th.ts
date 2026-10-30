@@ -1476,4 +1476,8 @@ export const th = {
   appVisualFlipV: 'พลิกแนวตั้ง',
   appVisualFlipH: 'พลิกแนวนอน',
   appCtxPasteVisual: 'วางรูปภาพหรือรูปร่าง',
+  appEmbeddedChartHint: 'ข้อมูลแผนภูมิของ {name} บันทึกเพื่ออัปเดตแผนภูมิ แล้วบันทึกงานนำเสนอด้วย',
+  appEmbeddedChartReturn: 'กลับไปยังสไลด์',
+  appEmbeddedChartSaveError:
+    'ไม่สามารถอัปเดตแผนภูมิได้ งานนำเสนอหรือช่วงข้อมูลอาจเปลี่ยนไป โปรดเก็บข้อมูลด้วยบันทึกเป็น แล้วเปิดตัวแก้ไขข้อมูลอีกครั้ง',
 } satisfies Record<keyof typeof zh, string>

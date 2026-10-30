@@ -1,3 +1,4 @@
+import { embeddedChartRowColumnEdits } from './embedded-chart-structure'
 import { createHash, randomUUID } from 'node:crypto'
 import {
   createReadStream,
@@ -1570,6 +1571,22 @@ export interface SheetsAiHostDocumentRequest {
 }
 
 interface SheetsRuntimeConfig {
+  embeddedChart?: {
+    title(path: string): string | undefined
+    showSource(path: string): void
+    save(
+      source: string,
+      target: string,
+      staged: string,
+      write: () => Promise<void>,
+      operations?: readonly {
+        sheetName: string
+        kind: 'insert-rows' | 'remove-rows' | 'insert-cols' | 'remove-cols'
+        index: number
+        count: number
+      }[],
+    ): Promise<void>
+  }
   /** absolute path to the sheets preload bundle */
   preloadPath: string
   /** dev-server URL for the sheets renderer (wins over rendererFile) */
@@ -3696,6 +3713,14 @@ export function registerSheetsIpc(): void {
     return response === 0 ? 'csv' : response === 1 ? 'xlsx' : 'cancel'
   })
 
+  ipcMain.handle(IPC_CHANNELS.showChartPresentation, (event, input: unknown) => {
+    const entry = sessionFor(event)
+    const id = z.string().uuid().parse(input)
+    const session = entry.sessions.get(id)
+    if (!session) throw new Error('Unknown workbook session.')
+    runtime.embeddedChart?.showSource(session.path)
+  })
+
   ipcMain.handle(IPC_CHANNELS.saveWorkbook, async (event, input: unknown) => {
     const entry = sessionFor(event)
     const client = entry.client
@@ -3863,7 +3888,17 @@ export function registerSheetsIpc(): void {
           encryptOoxml(await readFile(stagedPath), session.password),
         )
       } else {
-        await placeStagedSave(stagedPath, targetPath)
+        if (runtime.embeddedChart)
+          await runtime.embeddedChart.save(
+            session.path,
+            targetPath,
+            stagedPath,
+            () => placeStagedSave(stagedPath, targetPath),
+            session.path === targetPath && runtime.embeddedChart.title(session.path)
+              ? embeddedChartRowColumnEdits(request, session.sheetNames)
+              : [],
+          )
+        else await placeStagedSave(stagedPath, targetPath)
       }
 
       if (csvInPlace && session.csvSourcePath !== undefined && request.csvContent !== undefined) {
@@ -4991,6 +5026,7 @@ async function openWorkbookSession(
       // The renderer-facing path is what the user opened: for a restored
       // recovery copy that is the original file, not the copy under userData.
       path: restoreTarget ?? path,
+      embeddedChartTitle: runtime.embeddedChart?.title(path),
       sha256: digest,
       fileBytes: snapshotStat.size,
       readOnly: false,

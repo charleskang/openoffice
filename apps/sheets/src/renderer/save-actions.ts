@@ -636,6 +636,7 @@ export function stripIpcErrorWrapper(message: string): string {
 /// Gateway save errors users can trigger through normal editing, keyed by a
 /// stable substring; unmatched messages surface verbatim (English) as before.
 const SAVE_ERROR_PATTERNS = [
+  ['[embedded-chart]', 'appEmbeddedChartSaveError'],
   ['cannot shift here', 'appStructuralShiftBlocked'],
   ['extended (x14) data validation', 'appSaveErrX14Dv'],
   ['Multi-select list rules', 'appSaveErrMultiSelectList'],

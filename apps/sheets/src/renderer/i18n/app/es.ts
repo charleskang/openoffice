@@ -1560,4 +1560,9 @@ export const es = {
   appVisualFlipV: 'Voltear verticalmente',
   appVisualFlipH: 'Voltear horizontalmente',
   appCtxPasteVisual: 'Pegar imagen o forma',
+  appEmbeddedChartHint:
+    'Datos del gráfico de {name}. Guarde para actualizar el gráfico y después guarde la presentación.',
+  appEmbeddedChartReturn: 'Volver a las diapositivas',
+  appEmbeddedChartSaveError:
+    'No se pudo actualizar el gráfico. Es posible que la presentación o el rango hayan cambiado. Conserve los datos con Guardar como y vuelva a abrir el editor.',
 } satisfies Record<keyof typeof zh, string>

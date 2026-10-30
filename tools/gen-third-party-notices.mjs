@@ -761,6 +761,10 @@ and "PowerPoint" are trademarks of Microsoft Corporation. "한글" (Hangul),
 ${PRODUCT_NAME} opens.
 `
 
+out += hr('7. Tectonic LaTeX compiler')
+out += readFileSync(join(ROOT, 'apps/shell/build/TECTONIC-SOURCE.txt'), 'utf8') + '\n'
+out += readFileSync(join(ROOT, 'apps/shell/build/TECTONIC-LICENSE.txt'), 'utf8') + '\n'
+
 for (const term of ['@embedpdf/pdfium', 'Copyright 2014 PDFium Authors', 'Apache License']) {
   if (!out.includes(term)) {
     throw new Error(`generated third-party notice is missing PDFium term: ${term}`)

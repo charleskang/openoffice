@@ -241,4 +241,5 @@ export const zhTW = {
   appStatusSummaryZoomInserted: '已插入摘要縮放頁（{count} 個縮圖）',
   appSectionSummary: '摘要節',
   appSectionN: '第 {n} 節',
+  appChartWorkbookOpenError: '無法開啟圖表資料。請確認圖表包含內嵌試算表。',
 } satisfies Record<keyof typeof zh, string>

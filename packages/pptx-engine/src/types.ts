@@ -315,6 +315,8 @@ export interface ParagraphDefaultRunProps {
 
 export interface Paragraph {
   runs: TextRun[]
+  /** Render-only paragraph mark formatting, also used by an empty line after a soft break. */
+  endRun?: TextRun
   align?: TextAlign
   /** provenance of align: 'paragraph' or the inheritance layer */
   alignSrc?: string
@@ -673,6 +675,8 @@ export interface TableCellBorders {
 }
 
 export interface TableCell {
+  /** Render-only bitmap for an unsupported equation, from the matching AlternateContent fallback. */
+  equationPreviewFill?: Fill
   /** Cell text (reuses the TextBody model; anchor/insets already overridden per tcPr) */
   text?: TextBody
   /** Cell fill (explicit tcPr fill; table-style inheritance not yet supported) */

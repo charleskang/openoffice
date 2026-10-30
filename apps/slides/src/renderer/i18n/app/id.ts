@@ -259,4 +259,6 @@ export const id = {
   appStatusSummaryZoomInserted: 'Slide Zoom Ringkasan disisipkan dengan {count} ubin',
   appSectionSummary: 'Bagian Ringkasan',
   appSectionN: 'Bagian {n}',
+  appChartWorkbookOpenError:
+    'Data bagan tidak dapat dibuka. Pastikan bagan memiliki lembar kerja tertanam.',
 } satisfies Record<keyof typeof zh, string>

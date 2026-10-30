@@ -9,6 +9,7 @@ import {
   AI_SUBSCRIPTION_PROVIDERS,
   selectAiProvider,
   subscriptionConnection,
+  isSubscriptionProvider,
 } from '@genoffice/ai-provider/browser'
 import type {
   AiSettings,
@@ -64,10 +65,17 @@ export function subscriptionSummary(statuses: AiSubscriptionStatuses): Subscript
  * never "due": the acknowledgement could not be stored, so it would not stay away.
  */
 export function firstConnectionNoticeDue(
-  settings: Pick<AiSettings, 'subscriptionNoticeSeen'> | null,
+  settings:
+    (Pick<AiSettings, 'subscriptionNoticeSeen'> & Partial<Pick<AiSettings, 'provider'>>) | null,
   statuses: AiSubscriptionStatuses,
 ): boolean {
   if (!settings || settings.subscriptionNoticeSeen === true) return false
+  if (
+    settings.provider &&
+    settings.provider !== 'auto' &&
+    !isSubscriptionProvider(settings.provider)
+  )
+    return false
   return usableSubscriptionProviders(statuses).length > 0
 }
 

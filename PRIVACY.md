@@ -1,6 +1,6 @@
-# IeumOffice Privacy
+# OfficeMax Privacy
 
-Last updated: October 24, 2026
+Last updated: October 25, 2026
 
 IeumOffice opens, edits and saves documents on your own PC. The project runs
 no server of its own: nothing is sent to IeumOffice or to its maintainers, and
@@ -10,6 +10,37 @@ Data leaves your PC only in the situations listed below, and each time it goes
 directly from your PC to the service named there. This page describes what the
 app does; what each of those services does with what it receives is governed
 by that service's own terms and by your account settings there.
+
+## LaTeX compilation and PDF preview
+
+LaTeX source is passed to a local Tectonic process. This app does not upload the
+source or compiled PDF to an AI service to generate the preview. The compiler
+reads relative input files and images from the document's folder; temporary
+output is removed after the PDF has been read.
+
+The development installer downloads a version-pinned engine from the official
+Tectonic GitHub releases and checks its SHA-256. Tectonic may contact its own
+support-file bundle service when it needs a TeX package, format or font; those
+requests include the needed filenames and are cached by Tectonic per user.
+Compilation runs with Tectonic's untrusted mode, which disables shell escape.
+The optional automatic preview runs only after the user enables its checkbox.
+
+## LaTeX AI error repair
+
+Only when you choose **Get GPT proposal**, the current file's live source,
+compiler diagnostics, a bounded compiler-log excerpt, relative project filenames
+and your additional request go through your configured OpenAI API connection.
+PDF bytes and figures are not included. Other source files are not separately
+read for this request; compiler diagnostics may contain excerpts of their failing lines.
+API charges may apply. Missing OpenAI credentials stop the request; the repair
+feature does not fall back to Claude, Codex or another provider.
+
+The proposal stays in memory for review. It can change only the current editor
+buffer through exact, unique, non-overlapping replacements while the source
+still matches the request. Applying is undoable and triggers a local compile;
+saving follows the existing save/autosave settings. No model commands run, and
+no proposal is automatically applied or retried. Source that appears to contain
+the app's redaction markup is refused before transmission.
 
 ## What leaves your PC
 

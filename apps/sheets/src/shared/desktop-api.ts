@@ -789,6 +789,7 @@ const visualObjectSchema = z
 export const workbookFileSchema = z
   .object({
     sessionId: z.string().uuid(),
+    embeddedChartTitle: z.string().optional(),
     name: z.string().min(1),
     /// Absolute on-disk path; feeds CELL("filename"). Absent for sessions
     /// that never touched disk.
@@ -2924,6 +2925,7 @@ export interface DesktopApi {
   captureScreenSources(): Promise<ScreenSourcesResult>
   /// null when the source vanished between listing and capture.
   captureScreenSource(request: ScreenCaptureRequest): Promise<ScreenCaptureResult | null>
+  showChartPresentation(sessionId: string): Promise<void>
   saveWorkbookEdits(request: WorkbookSaveRequest): Promise<WorkbookSaveResult>
   /// Chunked upload of a large save's cell edits (above MAX_SAVE_EDITS):
   /// begin a transfer, send ordered slices, then reference the transfer via

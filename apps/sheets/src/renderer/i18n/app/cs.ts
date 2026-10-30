@@ -1515,4 +1515,9 @@ export const cs = {
   appVisualFlipV: 'Převrátit svisle',
   appVisualFlipH: 'Převrátit vodorovně',
   appCtxPasteVisual: 'Vložit obrázek nebo obrazec',
+  appEmbeddedChartHint:
+    'Data grafu pro {name}. Uložením aktualizujete graf, poté uložte prezentaci.',
+  appEmbeddedChartReturn: 'Zpět na snímky',
+  appEmbeddedChartSaveError:
+    'Graf nelze aktualizovat. Prezentace nebo rozsah se mohly změnit. Uchovejte data pomocí Uložit jako a znovu otevřete editor.',
 } satisfies Record<keyof typeof zh, string>

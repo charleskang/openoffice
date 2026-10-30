@@ -6,6 +6,10 @@
  */
 import {
   applyParagraphFormat,
+  getEmbeddedChartWorkbook,
+  validateChartWorkbookUpdate,
+  applyChartWorkbookUpdate,
+  type ChartWorkbookUpdate,
   editChartElement,
   editTableCellText,
   editTableStructure,
@@ -373,5 +377,27 @@ register({
       throw new GuidedError(`op "setChart": chart "${el.id}" rejected the edit.`)
     }
     return { op, after: op.patch }
+  },
+})
+
+// Workbook edits preserve imported axes/styles and validate journal-driven range/series changes.
+register({
+  name: 'setChartWorkbook',
+  validate(op, ctx) {
+    const { index, el } = resolveElement(ctx, op, { types: ['chart'] })
+    try {
+      validateChartWorkbookUpdate(
+        getEmbeddedChartWorkbook(ctx.opened, index, el.id),
+        op.update,
+        ctx.opened,
+      )
+    } catch (error) {
+      throw new GuidedError(error instanceof Error ? error.message : String(error))
+    }
+  },
+  apply(op, ctx): OpRecord {
+    const { index, el } = resolveElement(ctx, op, { types: ['chart'] })
+    applyChartWorkbookUpdate(ctx.opened, index, el.id, op.update as ChartWorkbookUpdate)
+    return { op }
   },
 })

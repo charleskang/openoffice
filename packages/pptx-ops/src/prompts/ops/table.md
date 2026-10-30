@@ -182,3 +182,9 @@ Common mistakes
 
 Changes a chart's type, data, colors or elements. The `edit_chart` tool exposes
 this with a validated schema.
+
+### setChartWorkbook (not-ai-callable)
+
+`{update:ChartWorkbookUpdate} — use the embedded spreadsheet editor`
+
+Applies a validated embedded workbook and chart data caches. Checks previous part hashes. Ordered worksheet row/column operations may update references, series membership/order and point-indexed styles; other chart formatting and relationships are preserved. Every chart sharing the workbook is updated together.

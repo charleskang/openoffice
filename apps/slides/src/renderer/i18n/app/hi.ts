@@ -263,4 +263,6 @@ export const hi = {
   appStatusSummaryZoomInserted: '{count} टाइलों के साथ सारांश ज़ूम स्लाइड डाली गई',
   appSectionSummary: 'सारांश अनुभाग',
   appSectionN: 'अनुभाग {n}',
+  appChartWorkbookOpenError:
+    'चार्ट डेटा नहीं खोला जा सका। जाँचें कि उसमें एम्बेड की गई स्प्रेडशीट है।',
 } satisfies Record<keyof typeof zh, string>

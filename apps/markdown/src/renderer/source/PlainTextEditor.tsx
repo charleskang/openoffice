@@ -19,6 +19,7 @@ import {
   indentWithTab,
   redo,
   redoDepth,
+  isolateHistory,
   undo,
   undoDepth,
 } from '@codemirror/commands'
@@ -34,6 +35,7 @@ import { tags } from '@lezer/highlight'
 import type { FindTarget } from '@genoffice/ui'
 import type { TextMode } from '../../shared/text-mode'
 import { buildFindTarget, findHighlight } from './plain-find'
+import { latex } from './latex-language'
 
 /** Marks the load dispatch so replacing the buffer is not read back as a user edit */
 const Loaded = Annotation.define<boolean>()
@@ -41,7 +43,10 @@ const Loaded = Annotation.define<boolean>()
 export interface PlainTextEditorHandle {
   /** replace the buffer without marking the document dirty (the initial file load) */
   setDoc(text: string): void
+  /** Replace the live buffer as a single undoable edit. */
+  applyText(text: string): boolean
   focus(): void
+  goToLine(line: number): void
   undo(): boolean
   redo(): boolean
   canUndo(): boolean
@@ -51,7 +56,7 @@ export interface PlainTextEditorHandle {
 
 interface Props {
   initialText: string
-  mode: Extract<TextMode, 'plain' | 'json'>
+  mode: Exclude<TextMode, 'markdown'>
   onChange: (text: string) => void
   className?: string
   spellcheck: boolean
@@ -67,6 +72,9 @@ const highlight = HighlightStyle.define([
   { tag: tags.bracket, color: 'var(--text-muted)' },
   { tag: tags.punctuation, color: 'var(--text-muted)' },
   { tag: tags.invalid, color: 'var(--danger)' },
+  { tag: tags.keyword, color: 'var(--accent)' },
+  { tag: tags.comment, color: 'var(--text-muted)' },
+  { tag: tags.operator, color: 'var(--success)' },
 ])
 
 const theme = EditorView.theme({
@@ -108,6 +116,7 @@ function extensionsFor(mode: Props['mode']) {
     // JSON gets its own grammar; plain text gets none, so there is nothing to
     // mistake ordinary prose for code
     ...(mode === 'json' ? [json()] : []),
+    ...(mode === 'latex' ? [latex] : []),
     findHighlight,
     theme,
     EditorView.lineWrapping,
@@ -185,7 +194,28 @@ export const PlainTextEditor = forwardRef<PlainTextEditorHandle, Props>(function
         annotations: Loaded.of(true),
       })
     },
+    applyText(text) {
+      const view = viewRef.current
+      if (!view) return false
+      if (view.state.doc.toString() !== text)
+        view.dispatch({
+          changes: { from: 0, to: view.state.doc.length, insert: text },
+          annotations: isolateHistory.of('full'),
+        })
+      view.focus()
+      return true
+    },
     focus: () => viewRef.current?.focus(),
+    goToLine(line) {
+      const view = viewRef.current
+      if (!view) return
+      const target = view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, line)))
+      view.dispatch({
+        selection: { anchor: target.from },
+        effects: EditorView.scrollIntoView(target.from, { y: 'center' }),
+      })
+      view.focus()
+    },
     undo: () => (viewRef.current ? undo(viewRef.current) : false),
     redo: () => (viewRef.current ? redo(viewRef.current) : false),
     canUndo: () => (viewRef.current ? undoDepth(viewRef.current.state) > 0 : false),

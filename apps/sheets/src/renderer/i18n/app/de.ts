@@ -1571,4 +1571,9 @@ export const de = {
   appVisualFlipV: 'Vertikal spiegeln',
   appVisualFlipH: 'Horizontal spiegeln',
   appCtxPasteVisual: 'Bild oder Form einfügen',
+  appEmbeddedChartHint:
+    'Diagrammdaten für {name}. Speichern Sie zum Aktualisieren des Diagramms und danach die Präsentation.',
+  appEmbeddedChartReturn: 'Zurück zu den Folien',
+  appEmbeddedChartSaveError:
+    'Das Diagramm konnte nicht aktualisiert werden. Präsentation oder Datenbereich wurden möglicherweise geändert. Sichern Sie die Daten mit Speichern unter und öffnen Sie den Dateneditor erneut.',
 } satisfies Record<keyof typeof zh, string>

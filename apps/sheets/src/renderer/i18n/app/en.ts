@@ -1493,4 +1493,9 @@ export const en = {
   appVisualFlipV: 'Flip Vertical',
   appVisualFlipH: 'Flip Horizontal',
   appCtxPasteVisual: 'Paste Picture or Shape',
+  appEmbeddedChartHint:
+    'Chart data for {name}. Save to update the chart, then save the presentation.',
+  appEmbeddedChartReturn: 'Return to slides',
+  appEmbeddedChartSaveError:
+    'Could not update the chart. The presentation or data range may have changed. Keep your data with Save As, then reopen the data editor.',
 } satisfies Record<keyof typeof zh, string>

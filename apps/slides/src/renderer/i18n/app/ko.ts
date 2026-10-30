@@ -251,4 +251,6 @@ export const ko = {
   appStatusSummaryZoomInserted: '타일 {count}개가 있는 요약 확대/축소 슬라이드 삽입됨',
   appSectionSummary: '요약 구역',
   appSectionN: '구역 {n}',
+  appChartWorkbookOpenError:
+    '차트 데이터를 열지 못했습니다. 내장 스프레드시트가 있는지 확인해 주세요.',
 } satisfies Record<keyof typeof zh, string>

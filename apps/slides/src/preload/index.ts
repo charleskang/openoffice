@@ -332,6 +332,8 @@ const api: SlidesApi = {
   editTableStyle: (op: EditTableStyleOp) => ipcRenderer.invoke('slides:edit-table-style', op),
   editChart: (op: EditChartOp) => ipcRenderer.invoke('slides:edit-chart', op),
   getChartColorSchemes: () => ipcRenderer.invoke('slides:chart-color-schemes'),
+  openChartWorkbook: (slideIndex: number, sourceId: string) =>
+    ipcRenderer.invoke('slides:open-chart-workbook', slideIndex, sourceId),
   getChartData: (slideIndex: number, sourceId: string) =>
     ipcRenderer.invoke('slides:get-chart-data', slideIndex, sourceId),
   copyElements: (op: CopyElementsOp) => ipcRenderer.invoke('slides:copy-elements', op),

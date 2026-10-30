@@ -221,7 +221,7 @@ export function defaultAiMediaSettings(): AiMediaSettings {
     }
   }
   return {
-    imageProvider: 'codex',
+    imageProvider: 'none',
     analysisProvider: 'chat',
     videoAnalysisProvider: 'none',
     providers,

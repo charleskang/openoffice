@@ -270,4 +270,6 @@ export const de = {
   appStatusSummaryZoomInserted: 'Zusammenfassungszoom-Folie mit {count} Kacheln eingefügt',
   appSectionSummary: 'Zusammenfassungsabschnitt',
   appSectionN: 'Abschnitt {n}',
+  appChartWorkbookOpenError:
+    'Die Diagrammdaten konnten nicht geöffnet werden. Prüfen Sie, ob eine Tabelle eingebettet ist.',
 } satisfies Record<keyof typeof zh, string>

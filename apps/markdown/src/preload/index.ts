@@ -12,6 +12,7 @@ import { installDropOpenBridge } from '@genoffice/electron-utils/drop-open'
 import { splitPaneBridge } from '@genoffice/electron-utils/split-pane-bridge'
 import { AI_CHANNELS, AI_TOOL_CAPABILITIES_CHANNEL, MARKDOWN_CHANNELS } from '../shared/ipc'
 import { normalizeMarkdownTheme, type MarkdownTheme } from '../shared/markdown-theme'
+import { LATEX_CHANNELS } from '../shared/latex'
 import type {
   AutoSaveDefault,
   DocTheme,
@@ -85,6 +86,12 @@ const aiSubscription: SubscriptionApi = {
 }
 
 const api: MarkdownApi = {
+  latexProject: () => ipcRenderer.invoke(LATEX_CHANNELS.project),
+  openLatexProjectFile: (path) => ipcRenderer.invoke(LATEX_CHANNELS.openProjectFile, path),
+  latexEngine: () => ipcRenderer.invoke(LATEX_CHANNELS.engine),
+  compileLatex: (request) => ipcRenderer.invoke(LATEX_CHANNELS.compile, request),
+  cancelLatex: () => ipcRenderer.invoke(LATEX_CHANNELS.cancel),
+  openLatexInstallHelp: () => ipcRenderer.invoke(LATEX_CHANNELS.installHelp),
   consumePending: () => ipcRenderer.invoke(MARKDOWN_CHANNELS.consumePending),
   takeSeed: () => ipcRenderer.invoke(MARKDOWN_CHANNELS.seedTake),
   takeNoteAppend: () =>

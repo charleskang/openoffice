@@ -125,6 +125,7 @@ export function PrintDialog({
   const paneRef = useRef<HTMLDivElement | null>(null)
   const frameRef = useRef<HTMLIFrameElement | null>(null)
   const modal = useModalDialog(onClose)
+  const buildQueue = useRef<Promise<void>>(Promise.resolve())
 
   useEffect(() => {
     let alive = true
@@ -144,8 +145,14 @@ export function PrintDialog({
   useEffect(() => {
     let alive = true
     const timer = window.setTimeout(() => {
-      host
-        .buildJob(range, overridesFor(settings))
+      const build = buildQueue.current.then(() =>
+        host.buildJob(range, overridesFor(settings), true),
+      )
+      buildQueue.current = build.then(
+        () => undefined,
+        () => undefined,
+      )
+      build
         .then((built) => {
           if (!alive) return
           setJob(built)

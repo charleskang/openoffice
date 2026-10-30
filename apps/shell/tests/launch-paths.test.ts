@@ -3,6 +3,19 @@ import { describe, expect, it } from 'vitest'
 import { collectLaunchPaths } from '../src/main/launch-paths'
 
 describe('collectLaunchPaths', () => {
+  it('accepts an explicit LaTeX ZIP and bibliography without taking over their OS associations', () => {
+    expect(
+      collectLaunchPaths(['OfficeMax.exe', '/paper.zip', '/refs.bib'], undefined, () => true),
+    ).toEqual(['/paper.zip', '/refs.bib'])
+  })
+  it('accepts LaTeX source at launch and through a second-instance payload', () => {
+    expect(
+      collectLaunchPaths(['Office.exe', 'C:\\papers\\MAIN.TEX'], undefined, () => true),
+    ).toEqual(['C:\\papers\\MAIN.TEX'])
+    expect(
+      collectLaunchPaths(['Office.app'], { launchPaths: ['/Users/me/main.ltx'] }, () => true),
+    ).toEqual(['/Users/me/main.ltx'])
+  })
   it('collects supported argv files in order and removes duplicates', () => {
     expect(
       collectLaunchPaths(

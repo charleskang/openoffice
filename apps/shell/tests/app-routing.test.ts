@@ -3,6 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { TEXT_RE, appForPath, renameStaysInApp } from '../src/main/app-routing'
 
 describe('appForPath', () => {
+  it('routes LaTeX source from Windows and Mac paths into the source-capable editor', () => {
+    expect(appForPath('C:\\papers\\MAIN.TEX')).toBe('markdown')
+    expect(appForPath('/Users/me/papers/main.ltx')).toBe('markdown')
+    expect(appForPath('/papers/main.tex.bak')).toBeUndefined()
+  })
   it('routes the markdown app at every extension it opens', () => {
     expect(appForPath('/x/notes.md')).toBe('markdown')
     expect(appForPath('/x/notes.markdown')).toBe('markdown')

@@ -7,6 +7,8 @@ export const nl = {
   tabHome: 'Start',
   tabView: 'Beeld',
   save: 'Opslaan',
+  exportPdf: 'Exporteren als PDF…',
+  pdfFailed: 'Het document kon niet als PDF worden geëxporteerd.',
   saveAs: 'Opslaan als…',
   saving: 'Opslaan…',
   saved: 'Opgeslagen',

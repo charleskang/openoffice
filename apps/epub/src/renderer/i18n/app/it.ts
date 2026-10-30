@@ -7,6 +7,8 @@ export const it = {
   tabHome: 'Home',
   tabView: 'Visualizza',
   save: 'Salva',
+  exportPdf: 'Esporta come PDF…',
+  pdfFailed: 'Impossibile esportare il documento in PDF.',
   saveAs: 'Salva con nome…',
   saving: 'Salvataggio…',
   saved: 'Salvato',

@@ -7,6 +7,8 @@ export const ja = {
   tabHome: 'ホーム',
   tabView: '表示',
   save: '保存',
+  exportPdf: 'PDF として書き出す…',
+  pdfFailed: 'PDF として書き出せませんでした。',
   saveAs: '名前を付けて保存…',
   saving: '保存中…',
   saved: '保存しました',

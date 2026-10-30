@@ -7,6 +7,8 @@ export const ru = {
   tabHome: 'Главная',
   tabView: 'Вид',
   save: 'Сохранить',
+  exportPdf: 'Экспортировать в PDF…',
+  pdfFailed: 'Не удалось экспортировать документ в PDF.',
   saveAs: 'Сохранить как…',
   saving: 'Сохранение…',
   saved: 'Сохранено',

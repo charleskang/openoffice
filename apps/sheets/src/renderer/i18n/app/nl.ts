@@ -1553,4 +1553,9 @@ export const nl = {
   appVisualFlipV: 'Verticaal spiegelen',
   appVisualFlipH: 'Horizontaal spiegelen',
   appCtxPasteVisual: 'Afbeelding of vorm plakken',
+  appEmbeddedChartHint:
+    'Grafiekgegevens voor {name}. Sla op om de grafiek bij te werken en sla daarna de presentatie op.',
+  appEmbeddedChartReturn: 'Terug naar dia’s',
+  appEmbeddedChartSaveError:
+    'De grafiek kon niet worden bijgewerkt. De presentatie of het bereik is mogelijk gewijzigd. Bewaar de gegevens met Opslaan als en open de editor opnieuw.',
 } satisfies Record<keyof typeof zh, string>

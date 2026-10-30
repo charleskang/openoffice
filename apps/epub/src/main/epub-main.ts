@@ -50,6 +50,7 @@ import { registerEpubAiIpc } from './ai-attachments'
 import { EPUB_ASSET_SCHEME_PRIVILEGE, serveEpubAsset } from './asset-protocol'
 import { atomicWriteFile } from './atomic-write'
 import { EpubBookSession } from './book-session'
+import { printBookPdf } from './print-pdf'
 import { tm } from './i18n-main'
 import { createReadingState, readPositionOf } from './reading-state'
 import type { ReadingState } from './reading-state'
@@ -620,6 +621,47 @@ function registerEpubIpc(): void {
     const session = sessionByWc.get(e.sender.id)
     if (!session) return { ok: false, error: 'not-open' }
     return session.readChapter(spineIndex)
+  })
+
+  const exportingPdf = new Set<number>()
+  ipcMain.handle(EPUB_CHANNELS.exportPdf, async (e, chapters: unknown) => {
+    const id = e.sender.id,
+      book = sessionByWc.get(id)
+    if (
+      !book ||
+      !mayWrite(id) ||
+      exportingPdf.has(id) ||
+      !Array.isArray(chapters) ||
+      !chapters.length ||
+      chapters.length > 2000 ||
+      chapters.some((c) => typeof c !== 'string' || !c) ||
+      chapters.reduce((n, c) => n + c.length, 0) > 32 * 1024 * 1024
+    )
+      return { ok: false, error: 'Invalid book PDF export request.' }
+    exportingPdf.add(id)
+    try {
+      const owner = BrowserWindow.fromWebContents(e.sender) ?? undefined
+      const source = savePathByWc.get(id)!
+      const picked = await showSaveDialogWithMemory(dialog, owner, {
+        defaultPath: source.replace(/\.epub$/i, '.pdf'),
+        filters: [{ name: 'PDF', extensions: ['pdf'] }],
+      })
+      if (picked.canceled || !picked.filePath) return { ok: true, canceled: true }
+      if (!/\.pdf$/i.test(picked.filePath)) throw new Error('Choose a PDF file name.')
+      if (samePath(source, picked.filePath) || isPathOpenInTab(picked.filePath))
+        throw new Error('The export target is already open.')
+      const token = assetTokenOf(id)
+      const pdf = await printBookPdf(chapters, token, (candidate) =>
+        candidate === token ? book.book : null,
+      )
+      if (e.sender.isDestroyed()) throw new Error('The book was closed during PDF export.')
+      await atomicWriteFile(picked.filePath, pdf)
+      return { ok: true, path: picked.filePath }
+    } catch (error) {
+      return { ok: false, error: String(error) }
+    } finally {
+      exportingPdf.delete(id)
+    }
   })
 
   ipcMain.handle(EPUB_CHANNELS.applyEdits, async (e, request: unknown) => {

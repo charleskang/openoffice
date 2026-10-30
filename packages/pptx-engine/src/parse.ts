@@ -359,7 +359,10 @@ function parseShapeFragment(
   // fields in document order instead of being appended after all plain runs.
   const semanticXml = fragXml
     .replace(MATH_AC_RE, mathBlockAsRun)
-    .replace(/<a:br\b[^>]*\/>|<a:br\b[\s\S]*?<\/a:br>/g, '<a:r><a:t>\n</a:t></a:r>')
+    .replace(/<a:br\b[^>]*\/>|<a:br\b[\s\S]*?<\/a:br>/g, (block) => {
+      const props = /<a:rPr\b[^>]*\/>|<a:rPr\b[\s\S]*?<\/a:rPr>/.exec(block)?.[0] ?? ''
+      return '<a:r>' + props + '<a:t>\n</a:t></a:r>'
+    })
     .replace(/<a:fld\b/g, '<a:r')
     .replace(/<\/a:fld>/g, '</a:r>')
   if (sp.name === 'p:grpSp' && groupExceedsBudget(fragXml)) {
@@ -408,7 +411,33 @@ function parseShapeFragment(
         const gf = Array.isArray(gfRaw) ? gfRaw[0] : gfRaw
         if (!gf) continue
         const el = graphicFramePassthrough(gf, anchor, ctx)
-        if (el && el.type !== 'passthrough') return el
+        if (el && el.type !== 'passthrough') {
+          // Office retains a bitmap in the fallback cell when its choice contains an
+          // equation. Keep the choice model/anchor for editing and byte-preserving saves;
+          // only borrow the corresponding cell's picture for display.
+          const fallbackFrame = node['mc:Fallback']?.['p:graphicFrame']
+          const fallback = Array.isArray(fallbackFrame) ? fallbackFrame[0] : fallbackFrame
+          const tableXml = gf?.['a:graphic']?.['a:graphicData']?.['a:tbl']
+          if (el.type === 'table' && tableXml && fallback && /<a14:m\b/.test(fragXml)) {
+            const preview = graphicFramePassthrough(fallback, anchor, ctx)
+            if (preview?.type === 'table') {
+              const list = (value: any): any[] =>
+                Array.isArray(value) ? value : value ? [value] : []
+              list(tableXml['a:tr']).forEach((row: any, r: number) => {
+                list(row['a:tc']).forEach((cell: any, c: number) => {
+                  const equation = list(cell['a:txBody']?.['a:p']).some(
+                    (p: any) => p['a14:m'] != null,
+                  )
+                  const fill = preview.rows[r]?.[c]?.fill
+                  const target = el.rows[r]?.[c]
+                  if (equation && target && fill?.type === 'image')
+                    target.equationPreviewFill = fill
+                })
+              })
+            }
+          }
+          return el
+        }
       }
       const fb = node['mc:Fallback']
       const picRaw = fb?.['p:pic']
@@ -3331,6 +3360,14 @@ function parseTableCell(
   const fill = parseFill(tcPr, ctx)
   if (fill) {
     if (fill.type !== 'none') cell.fill = fill
+  } else if (part?.fillRef) {
+    const { idx, phClr } = part.fillRef
+    const template =
+      idx > 1000 ? ctx.theme?.bgFillStyles?.[idx - 1001] : ctx.theme?.fillStyles?.[idx - 1]
+    const inherited = template
+      ? parseFill(template, { ...ctx, phClr, mediaRels: ctx.themeMediaRels ?? ctx.mediaRels })
+      : undefined
+    if (inherited && inherited.type !== 'none') cell.fill = inherited
   } else if (part?.fill) cell.fill = part.fill
 
   const cell3D = tcPr['a:cell3D']
@@ -3849,6 +3886,10 @@ function parseParagraph(
   // A field with no cached text (<a:fld type="slidenum"> straight from the layout,
   // never opened in PowerPoint) is not empty: its value is substituted at render time.
   const endPr = p['a:endParaRPr']
+  const endRun =
+    endPr && typeof endPr === 'object'
+      ? parseRun({ 'a:rPr': endPr, 'a:t': '' }, ctx, runDflt)
+      : undefined
   if (endPr && typeof endPr === 'object' && runs.every((r) => !r.text && !r.field && !r.rawXml)) {
     const mark = parseRun({ 'a:rPr': endPr, 'a:t': '' }, ctx, runDflt)
     mark.paraMark = true
@@ -3982,6 +4023,7 @@ function parseParagraph(
 
   return {
     runs,
+    ...(endRun ? { endRun } : {}),
     align: pPr['@_algn'] ? alignMap[pPr['@_algn']] : dflt?.align,
     ...(pPr['@_algn'] || dflt?.align != null
       ? { alignSrc: pPr['@_algn'] ? 'paragraph' : (dflt?.src?.align ?? 'inherited') }

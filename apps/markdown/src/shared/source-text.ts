@@ -7,6 +7,11 @@ export interface SourceTextFormat {
 
 const BOM = '\uFEFF'
 
+/** Reject unsupported encodings before an edited TeX file could overwrite them. */
+export function decodeLatexSource(bytes: Uint8Array): string {
+  return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)
+}
+
 export function readSourceText(raw: string): { text: string; format: SourceTextFormat } {
   const bom = raw.startsWith(BOM)
   const body = bom ? raw.slice(1) : raw

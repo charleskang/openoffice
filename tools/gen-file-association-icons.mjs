@@ -15,19 +15,9 @@
  *   the EPUB editor's src/renderer/ai/assets copies)
  *       the AI panel's attachment-card icons, one identical set per editor
  *
- * The icons form one family, a notebook page kept to one idea: a white page
- * with rounded corners, a solid colored spine on the left, and one bold
- * pictogram of the content in the same color. Formats are told apart by that
- * color and pictogram, never by a vendor's logo, monogram or signature glyph.
- * The attachment kinds that are not one format (image, video, audio, plain
- * document, unknown file) use the same page with their own pictogram.
- *
- * Each SVG holds three drawings an embedded media query picks from by the
- * size the image is drawn at (media queries inside an SVG evaluate against
- * its own viewport): up to SMALL_MAX_PX a 16 px drawing on whole pixels with
- * a narrower spine and heavier pictogram, up to LARGE_MIN_PX a mid-size
- * drawing, and the full drawing from there. One file therefore serves the
- * 16 px tab and the 256 px Explorer view alike.
+ * The icons use the OfficeMax A family: a solid rounded tile and a white
+ * content pictogram. SVGs retain size-specific detail for small menus and tabs.
+ * No vendor logos or signature glyphs are used.
  *
  * The Hangul syllable on the HWP icon is converted to outlines from
  * Pretendard Bold (SIL OFL 1.1, packages/ui/template-fonts, listed in
@@ -61,7 +51,7 @@ const GLYPH_FONT = join(root, 'packages/ui/template-fonts/Pretendard-Bold.otf')
 // ── the family ──────────────────────────────────────────────────────────────
 
 /**
- * One entry per format icon: the spine and pictogram color, and the
+ * One entry per format icon: the tile color, and the
  * pictogram. Formats that share an icon (xlsm/xls/csv/tsv on xlsx, hwpx on
  * hwp, htm on html, markdown on md, odt on docx) are mapped in Home.tsx,
  * DriveBrowser.tsx and electron-builder.cjs. The colors are one palette of
@@ -69,11 +59,12 @@ const GLYPH_FONT = join(root, 'packages/ui/template-fonts/Pretendard-Bold.otf')
  * color.
  */
 const FORMATS = {
-  docx: { color: '#5160BE', picto: 'paragraphs' }, // indigo
-  xlsx: { color: '#2A8572', picto: 'cells' }, // teal green
-  pptx: { color: '#C27630', picto: 'slide' }, // amber
+  docx: { color: '#3974CD', picto: 'paragraphs' }, // indigo
+  xlsx: { color: '#19836D', picto: 'cells' }, // teal green
+  pptx: { color: '#BE672F', picto: 'slide' }, // amber
   pdf: { color: '#B84A5C', picto: 'stamp' }, // crimson
   hwp: { color: '#2E7FAA', picto: 'syllable' }, // cyan blue
+  tex: { color: '#8056B8', picto: 'latex' }, // violet
   md: { color: '#4A5568', picto: 'hash' }, // slate
   html: { color: '#8257B6', picto: 'tag' }, // violet
   mindmap: { color: '#B04E83', picto: 'nodes' }, // berry
@@ -95,11 +86,6 @@ const GENERIC = {
 // LARGE_MIN_PX the full drawing, the mid-size one between.
 const SMALL_MAX_PX = 23.98
 const LARGE_MIN_PX = 40
-
-const PAGE_FILL = '#FFFFFF'
-// a hairline and a soft shadow set the white page off a light background
-const EDGE_COLOR = '#0F172A'
-const SHADOW_COLOR = '#0F172A'
 
 // ── outputs ─────────────────────────────────────────────────────────────────
 
@@ -164,35 +150,6 @@ const ICNS_ENTRIES = [
 // 16-unit grid (one pixel at 16 px) so the menu and tab icons stay crisp.
 
 const num = (value) => Number(value.toFixed(2))
-
-function roundedRectPath({ left, top, right, bottom, radius: r }) {
-  return [
-    `M${left + r} ${top}`,
-    `H${right - r}`,
-    `A${r} ${r} 0 0 1 ${right} ${top + r}`,
-    `V${bottom - r}`,
-    `A${r} ${r} 0 0 1 ${right - r} ${bottom}`,
-    `H${left + r}`,
-    `A${r} ${r} 0 0 1 ${left} ${bottom - r}`,
-    `V${top + r}`,
-    `A${r} ${r} 0 0 1 ${left + r} ${top}`,
-    'Z',
-  ].join('')
-}
-
-/** The spine: the page's left part up to x = `spine`, following its rounded left corners. */
-function spinePath({ left, top, bottom, radius: r }, spine) {
-  return [
-    `M${left + r} ${top}`,
-    `H${spine}`,
-    `V${bottom}`,
-    `H${left + r}`,
-    `A${r} ${r} 0 0 1 ${left} ${bottom - r}`,
-    `V${top + r}`,
-    `A${r} ${r} 0 0 1 ${left + r} ${top}`,
-    'Z',
-  ].join('')
-}
 
 const glyphFont = opentype.parse(readFileSync(GLYPH_FONT).buffer)
 
@@ -378,64 +335,41 @@ function pictogram(kind, b, fg, bg, sw, small) {
   }
 }
 
-/** Geometry of the three drawings. */
-const SIZES = {
-  // up to SMALL_MAX_PX: page 1..15 px wide with its 1 px edge inside, a
-  // 4 px spine, a heavier pictogram
-  small: {
-    page: { left: 16, top: 0, right: 240, bottom: 256, radius: 40 },
-    spine: 80,
-    box: { x: 106, y: 64, w: 104, h: 128 },
-    stroke: 22,
-    edgeOpacity: 0.26,
-    edgeWidth: 16,
-    shadow: null,
-  },
-  // 24-39 px
-  mid: {
-    page: { left: 36, top: 12, right: 220, bottom: 244, radius: 36 },
-    spine: 84,
-    box: { x: 112, y: 80, w: 84, h: 96 },
-    stroke: 18,
-    edgeOpacity: 0.18,
-    edgeWidth: 8,
-    shadow: { dy: 3, blur: 4 },
-  },
-  // 40 px and up
-  large: {
-    page: { left: 40, top: 16, right: 216, bottom: 240, radius: 34 },
-    spine: 82,
-    box: { x: 112, y: 86, w: 80, h: 84 },
-    stroke: 13,
-    edgeOpacity: 0.12,
-    edgeWidth: 4,
-    shadow: { dy: 5, blur: 7 },
-  },
-}
-
+/** The selected A artwork, shared by every OS and in-app rendering. */
 function drawing(key, size) {
   const { color, picto } = FORMATS[key] ?? GENERIC[key]
-  const geometry = SIZES[size]
-  const outline = roundedRectPath(geometry.page)
-  const shadowId = `shadow-${size}`
-  let out = ''
-  if (geometry.shadow) {
-    out += `<defs><filter id="${shadowId}" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="${geometry.shadow.dy}" stdDeviation="${geometry.shadow.blur}" flood-color="${SHADOW_COLOR}" flood-opacity="0.14"/></filter></defs>`
+  const stroke =
+    'stroke="#FFFFFF" stroke-width="3.7" stroke-linecap="round" stroke-linejoin="round" fill="none"'
+  const selected = {
+    paragraphs: '<path d="M19 21h26M19 32h20M19 43h26" ' + stroke + '/>',
+    cells:
+      '<rect x="16" y="18" width="32" height="28" rx="3.5" ' +
+      stroke +
+      '/><path d="M27 19v26M38 19v26M17 32h30" ' +
+      stroke +
+      '/>',
+    slide:
+      '<rect x="15" y="16" width="34" height="25" rx="3.5" ' +
+      stroke +
+      '/><path d="M32 41v7M25 49h14M22 33v-5M32 33V23M42 33v-8" ' +
+      stroke +
+      '/>',
+    latex:
+      '<path d="M24 17h-2q-4 0-4 5v4q0 6-4 6 4 0 4 6v4q0 5 4 5h2M40 17h2q4 0 4 5v4q0 6 4 6-4 0-4 6v4q0 5-4 5h-2m-12-19 8 10m0-10-8 10" ' +
+      stroke +
+      '/>',
   }
-  out += `<path d="${outline}" fill="${PAGE_FILL}"${geometry.shadow ? ` filter="url(#${shadowId})"` : ''}/>`
-  out += `<path d="${spinePath(geometry.page, geometry.spine)}" fill="${color}"/>`
-  out += pictogram(picto, geometry.box, color, PAGE_FILL, geometry.stroke, size === 'small')
-  // the edge runs just inside the page, so at 16 px it covers whole pixels
-  const inset = geometry.edgeWidth / 2
-  const edge = roundedRectPath({
-    left: geometry.page.left + inset,
-    top: geometry.page.top + inset,
-    right: geometry.page.right - inset,
-    bottom: geometry.page.bottom - inset,
-    radius: geometry.page.radius - inset,
-  })
-  out += `<path d="${edge}" stroke="${EDGE_COLOR}" stroke-opacity="${geometry.edgeOpacity}" stroke-width="${geometry.edgeWidth}"/>`
-  return out
+  const glyph = selected[picto]
+    ? '<g transform="scale(4)">' + selected[picto] + '</g>'
+    : pictogram(
+        picto,
+        { x: 60, y: 64, w: 136, h: 128 },
+        '#FFFFFF',
+        color,
+        size === 'small' ? 16 : 14.8,
+        size === 'small',
+      )
+  return '<rect x="4" y="4" width="248" height="248" rx="64" fill="' + color + '"/>' + glyph
 }
 
 function svgFor(key) {

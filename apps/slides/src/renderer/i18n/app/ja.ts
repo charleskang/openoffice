@@ -255,4 +255,6 @@ export const ja = {
   appStatusSummaryZoomInserted: 'サマリー ズーム スライドを挿入しました（タイル {count} 個）',
   appSectionSummary: 'サマリー セクション',
   appSectionN: 'セクション {n}',
+  appChartWorkbookOpenError:
+    'グラフのデータを開けませんでした。埋め込みスプレッドシートがあるか確認してください。',
 } satisfies Record<keyof typeof zh, string>

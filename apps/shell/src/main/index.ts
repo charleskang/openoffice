@@ -1,3 +1,4 @@
+import { EmbeddedChartWorkbooks } from './embedded-chart-workbooks'
 import { execSync, spawn } from 'node:child_process'
 import {
   existsSync,
@@ -29,6 +30,12 @@ import {
 } from 'electron'
 import type { MenuItemConstructorOptions, NativeImage, WebContents } from 'electron'
 import { atomicWriteFile } from './atomic-write'
+import { extractLatexProject, inspectLatexArchive, LatexArchiveError } from './latex-project-import'
+import {
+  describeLatexProject,
+  LATEX_PROJECT_MARKER,
+} from '../../../markdown/src/main/latex-project'
+import { latexText } from '../../../markdown/src/renderer/i18n/strings-latex'
 import { tabStripOverlay } from './title-bar-overlay'
 import {
   applyUiScaleTo,
@@ -58,7 +65,12 @@ import menuEpubIcon2x from './assets/menu-epub@2x.png?asset'
 import menuHomeIcon1x from './assets/menu-home.png?asset'
 import menuHomeIcon2x from './assets/menu-home@2x.png?asset'
 import { createI18n, isLang, normalizeLang, setUiLang, type Lang } from '@genoffice/i18n'
-import { DEV_USER_DATA_DIR_NAME, PRODUCT_CONTACT_EMAIL, productName } from '@genoffice/i18n'
+import {
+  DEV_USER_DATA_DIR_NAME,
+  PRODUCT_CONTACT_EMAIL,
+  PRODUCT_NAME,
+  productName,
+} from '@genoffice/i18n'
 import {
   DEFAULT_SAVE_DIR_KEY,
   DROP_OPEN_CHANNEL,
@@ -271,6 +283,7 @@ import {
   sendMarkdownExportRequest,
   sendMarkdownPrintRequest,
   setMarkdownDocxExportedHook,
+  setMarkdownLatexProjectOpenHook,
   setMarkdownFileSavedHook,
 } from '../../../markdown/src/main/markdown-main'
 import {
@@ -642,17 +655,43 @@ configureDocsRuntime({
   rendererUrl: process.env.DOCS_RENDERER_URL,
   rendererFile: join(DOCS_OUT, 'renderer', 'index.html'),
 })
+const embeddedChartWorkbooks = new EmbeddedChartWorkbooks((path) => {
+  if (!tabManager) return undefined
+  revealShellWindow()
+  const existing = tabManager.findSheetsTabByPath(path)
+  const id = existing ?? tabManager.openSheetsTab(path)
+  tabManager.activateTab(id)
+  if (!existing) startQueuedWorkbookNudge()
+  return tabManager.webContentsForTab(id)
+})
+
 configureSheetsRuntime({
   preloadPath: join(SHEETS_OUT, 'preload', 'index.js'),
   rendererUrl: process.env.SHEETS_RENDERER_URL,
   rendererFile: join(SHEETS_OUT, 'renderer', 'index.html'),
   sidecarPath: SIDECAR_BIN,
+  embeddedChart: embeddedChartWorkbooks,
   openGeneratedPath: (path) => openGeneratedDocument(path),
   // The sheets AI's create_document (docx/pdf/md) funnels into the docs-owned
   // creation flow, like the pdf app below.
   createDocument: createAiDocument,
 })
 configureSlidesRuntime({
+  openChartWorkbook: (request) =>
+    embeddedChartWorkbooks.edit({
+      ...request,
+      showSource: () => {
+        const id = tabManager?.tabIdForWebContents(request.owner.id)
+        if (id) {
+          revealShellWindow()
+          tabManager?.activateTab(id)
+        } else {
+          const window = BrowserWindow.fromWebContents(request.owner)
+          window?.show()
+          window?.focus()
+        }
+      },
+    }),
   preloadPath: join(SLIDES_OUT, 'preload', 'index.js'),
   rendererDevUrl: process.env.SLIDES_RENDERER_URL,
   rendererFilePath: join(SLIDES_OUT, 'renderer', 'index.html'),
@@ -769,10 +808,13 @@ const restoredTabDeps: RestoredTabOpenerDeps = {
 /** the open document tabs, for the session record (a no-op until the launch started it) */
 function noteLiveSession(): void {
   if (!sessionRecorder()) return
+  const strip = tabManager?.sessionTabs()
+  const keep = (tab: { filePath?: string }) =>
+    !tab.filePath || !embeddedChartWorkbooks.title(tab.filePath)
   noteSessionChanged(
     liveSessionSource({
-      strip: tabManager?.sessionTabs() ?? null,
-      detached: detachedSessionTabs(),
+      strip: strip ? { ...strip, tabs: strip.tabs.filter(keep) } : null,
+      detached: detachedSessionTabs().filter(keep),
       untitledOf: (tab) =>
         tabUntitledCopy(
           tab,
@@ -4322,7 +4364,7 @@ const SEARCH_EXT_FAMILY: Record<string, readonly string[]> = {
   docx: ['docx', 'doc', 'odt'],
   xlsx: ['xlsx', 'xlsm', 'xls', 'csv', 'tsv'],
   pptx: ['pptx', 'ppt'],
-  md: ['md', 'markdown', 'txt', 'json'],
+  md: ['md', 'markdown', 'txt', 'json', 'tex', 'ltx'],
   html: ['html', 'htm'],
   hwp: ['hwp', 'hwpx'],
 }
@@ -4774,7 +4816,7 @@ function createShellWindow(): void {
   setSheetsWorkbookOpenedHook((wc, path) => {
     manager.setTabFileFor(wc.id, path)
     detachedSetFileFor(wc.id, path)
-    recordRecentFile(path)
+    if (!embeddedChartWorkbooks.title(path)) recordRecentFile(path)
   })
   setSlidesOpenedHook((wc, path) => {
     manager.setTabFileFor(wc.id, path)
@@ -4894,6 +4936,9 @@ function createShellWindow(): void {
   setMarkdownDocxExportedHook((path) => {
     openDocumentPath(path)
   })
+  setMarkdownLatexProjectOpenHook((path) => {
+    openDocumentPath(path)
+  })
   // Word export to a path already open in a docs tab: close that tab before the file is
   // written (its unsaved-changes prompt applies, and a later save of the stale document
   // could otherwise overwrite the export); a cancelled close aborts the export.
@@ -4981,6 +5026,13 @@ const OPEN_DIALOG_EXTENSIONS = [
   'markdown',
   'txt',
   'json',
+  'tex',
+  'ltx',
+  'bib',
+  'sty',
+  'cls',
+  'bst',
+  'zip',
   'html',
   'htm',
   'xmind',
@@ -5026,6 +5078,10 @@ function registerDroppedFilesIpc(): void {
 
 /** the single router: extension decides which module owns the file; false = nothing opened */
 function openDocumentPath(filePath: string): boolean {
+  if (/\.zip$/i.test(filePath) && existsSync(filePath)) {
+    void importLatexProjectArchive(filePath)
+    return true
+  }
   // a copy of a Drive file (from Recent, say) reopens through Drive, so a copy
   // older than the file in Drive is refreshed first unless it holds unsent edits
   const viaDrive = driveService?.reopen(filePath)
@@ -5035,6 +5091,70 @@ function openDocumentPath(filePath: string): boolean {
   }
   const opened = routeDocumentPath(filePath)
   return opened
+}
+
+const importingLatexArchives = new Set<string>()
+async function importLatexProjectArchive(filePath: string): Promise<void> {
+  const key = resolve(filePath)
+  if (importingLatexArchives.has(key)) return
+  importingLatexArchives.add(key)
+  const text = (label: Parameters<typeof latexText>[1]) => latexText(currentLang(), label)
+  try {
+    const archive = await inspectLatexArchive(key)
+    let main = archive.candidates[0]
+    const win = shellWindow ?? BrowserWindow.getFocusedWindow()
+    if (!win) return
+    if (archive.candidates.length > 1 && archive.candidates.length <= 12) {
+      const choice = await dialog.showMessageBox(win, {
+        type: 'question',
+        title: text('project'),
+        message: text('chooseMain'),
+        detail: text('chooseMainDetail'),
+        buttons: [...archive.candidates, text('cancel')],
+        cancelId: archive.candidates.length,
+        noLink: true,
+      })
+      if (choice.response >= archive.candidates.length) return
+      main = archive.candidates[choice.response]
+    }
+    const picked = await showOpenDialogWithMemory(dialog, win, {
+      title: text('chooseDestination'),
+      defaultPath: defaultSaveDir(),
+      properties: ['openDirectory', 'createDirectory'],
+    })
+    if (picked.canceled || !picked.filePaths[0]) return
+    let project = await extractLatexProject(key, picked.filePaths[0], archive, main)
+    if (archive.candidates.length > 12) {
+      const selected = await showOpenDialogWithMemory(dialog, win, {
+        title: text('chooseMain'),
+        defaultPath: project.mainPath,
+        filters: [{ name: 'LaTeX', extensions: ['tex', 'ltx'] }],
+        properties: ['openFile'],
+      })
+      if (selected.canceled || !selected.filePaths[0]) return
+      const chosen = archive.candidates.find(
+        (candidate) => resolve(project.root, candidate) === resolve(selected.filePaths[0]),
+      )
+      if (!chosen) throw new LatexArchiveError('noMainDocument')
+      writeFileSync(
+        join(project.root, LATEX_PROJECT_MARKER),
+        JSON.stringify({ version: 1, main: chosen }) + '\n',
+        'utf8',
+      )
+      project = await describeLatexProject(project.root, resolve(project.root, chosen))
+    }
+    const extras = withExtraRoot(extraFolderRoots(), defaultSaveDir(), project.root)
+    if (extras) writeAppSetting(APP_SETTINGS_PATH(), FOLDER_ROOTS_KEY, extras)
+    ensureFolderWatchers()
+    fileIndexer?.refresh()
+    routeDocumentPath(project.mainPath)
+    revealShellWindow()
+  } catch (error) {
+    const reason = error instanceof LatexArchiveError ? text(error.code) : text('invalidArchive')
+    showAppWarning(text('importFailed') + '\n' + reason)
+  } finally {
+    importingLatexArchives.delete(key)
+  }
 }
 
 /**
@@ -5602,24 +5722,28 @@ function registerHomeIpc(): void {
     fileIndexer?.refresh()
   })
 
-  ipcMain.handle(HOME_CHANNELS.browse, async (event) => {
+  ipcMain.handle(HOME_CHANNELS.browse, async (event, kind: unknown) => {
     const win = BrowserWindow.fromWebContents(event.sender) ?? shellWindow
     if (!win) return
     const result = await showOpenDialogWithMemory(dialog, win, {
       title: tm('dlgOpenTitle'),
-      filters: [
-        { name: tm('filterSupported'), extensions: OPEN_DIALOG_EXTENSIONS },
-        { name: tm('filterWord'), extensions: ['docx', 'doc'] },
-        { name: tm('filterOdt'), extensions: ['odt'] },
-        { name: tm('filterExcel'), extensions: ['xlsx', 'xlsm', 'xls', 'csv', 'tsv'] },
-        { name: tm('filterPpt'), extensions: ['pptx', 'ppt'] },
-        { name: tm('filterPdf'), extensions: ['pdf'] },
-        { name: tm('filterMarkdown'), extensions: ['md', 'markdown', 'txt', 'json'] },
-        { name: tm('filterHtml'), extensions: ['html', 'htm'] },
-        { name: tm('filterMindmap'), extensions: ['xmind'] },
-        { name: tm('filterHwp'), extensions: ['hwp', 'hwpx'] },
-        { name: tm('filterEpub'), extensions: ['epub'] },
-      ],
+      filters:
+        kind === 'latex'
+          ? [{ name: 'LaTeX / ZIP', extensions: ['tex', 'ltx', 'zip'] }]
+          : [
+              { name: tm('filterSupported'), extensions: OPEN_DIALOG_EXTENSIONS },
+              { name: tm('filterWord'), extensions: ['docx', 'doc'] },
+              { name: tm('filterOdt'), extensions: ['odt'] },
+              { name: tm('filterExcel'), extensions: ['xlsx', 'xlsm', 'xls', 'csv', 'tsv'] },
+              { name: tm('filterPpt'), extensions: ['pptx', 'ppt'] },
+              { name: tm('filterPdf'), extensions: ['pdf'] },
+              { name: tm('filterMarkdown'), extensions: ['md', 'markdown', 'txt', 'json'] },
+              { name: 'LaTeX / ZIP', extensions: ['tex', 'ltx', 'zip'] },
+              { name: tm('filterHtml'), extensions: ['html', 'htm'] },
+              { name: tm('filterMindmap'), extensions: ['xmind'] },
+              { name: tm('filterHwp'), extensions: ['hwp', 'hwpx'] },
+              { name: tm('filterEpub'), extensions: ['epub'] },
+            ],
       properties: ['openFile', 'multiSelections'],
     })
     if (!result.canceled) for (const path of result.filePaths) openDocumentPath(path)
@@ -7127,6 +7251,10 @@ function buildPdfMenu(): void {
           accelerator: 'CmdOrCtrl+Shift+S',
           click: () => void savePdfAs(),
         },
+        {
+          label: tm('menuExportPdf'),
+          click: () => void savePdfAs(),
+        },
         ...documentLinkFileMenuItems('pdf'),
         { type: 'separator' },
         // local pdf2docx (P4): in-process PDFium wasm, no cloud counterpart
@@ -7428,6 +7556,8 @@ function buildEpubMenu(): void {
             if (tab) void requestEpubSave(tab.webContents, 'saveAs')
           },
         },
+        { type: 'separator' },
+        { label: tm('menuExportPdf'), click: toBook('export-pdf') },
         { type: 'separator' },
         { label: tm('menuTranslateBook'), click: toBook('translate-book') },
         { type: 'separator' },
@@ -8876,7 +9006,7 @@ app.whenReady().then(async () => {
         withProject ? enabled : enabled.filter((skill) => skill.source !== 'project'),
         // not under userData: that folder is protected from sessions, and the
         // copied skills' scripts must be readable to run
-        join(process.env.LOCALAPPDATA ?? tmpdir(), 'IeumOffice', 'agent-skills'),
+        join(process.env.LOCALAPPDATA ?? tmpdir(), PRODUCT_NAME, 'agent-skills'),
       )
     },
     projectSkills: {

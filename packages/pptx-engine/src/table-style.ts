@@ -21,6 +21,8 @@ import { asXmlNode, xmlArray, type XmlNode } from './xml-utils'
 /** Style for one table region (whole table / banding / first row, etc.). */
 export interface TablePartStyle {
   fill?: Fill
+  /** Theme fill template instantiated per region with its own placeholder color. */
+  fillRef?: { idx: number; phClr?: string }
   bold?: boolean
   textColor?: string
   /** <a:tcTxStyle><a:fontRef idx>: the theme font scheme cell text follows (every built-in
@@ -548,6 +550,14 @@ function readPart(part: unknown, theme: Theme | undefined): TablePartStyle | und
   const out: TablePartStyle = {}
   const fillColor = readColor(asXmlNode(asXmlNode(p['a:tcStyle'])['a:fill'])['a:solidFill'], theme)
   if (fillColor) out.fill = solid(fillColor)
+  const fillNode = asXmlNode(asXmlNode(p['a:tcStyle'])['a:fill'])
+  if ('a:noFill' in fillNode) out.fill = { type: 'none' }
+  const refRaw = asXmlNode(p['a:tcStyle'])['a:fillRef']
+  if (refRaw) {
+    const ref = asXmlNode(refRaw)
+    const idx = parseInt(String(ref['@_idx'] ?? '0'), 10) || 0
+    if (idx > 0) out.fillRef = { idx, phClr: readColor(ref, theme) }
+  }
   if (p['a:tcTxStyle']) {
     const tx = asXmlNode(p['a:tcTxStyle'])
     if (tx['@_b'] === 'on') out.bold = true
@@ -659,10 +669,16 @@ export function cellPartStyle(
   nRows: number,
   nCols: number,
 ): TablePartStyle {
-  const merge = (base: TablePartStyle, over?: TablePartStyle): TablePartStyle =>
-    over
-      ? { ...base, ...Object.fromEntries(Object.entries(over).filter(([, v]) => v !== undefined)) }
-      : base
+  const merge = (base: TablePartStyle, over?: TablePartStyle): TablePartStyle => {
+    if (!over) return base
+    const out = {
+      ...base,
+      ...Object.fromEntries(Object.entries(over).filter(([, v]) => v !== undefined)),
+    }
+    if (over.fillRef) delete out.fill
+    if (over.fill) delete out.fillRef
+    return out
+  }
 
   let out: TablePartStyle = { ...(def.wholeTbl ?? {}) }
   const isFirstRow = flags.firstRow && r === 0
