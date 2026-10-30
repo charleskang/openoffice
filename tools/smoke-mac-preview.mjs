@@ -188,7 +188,14 @@ try {
     .toBe(true)
   await expect(sheet.locator('.workbook-opening-screen')).toBeHidden({ timeout: 60000 })
   await sheet.waitForFunction(() => !!window.__genofficeDebug?.univerAPI?.getActiveWorkbook())
+  const tabs = await shell.evaluate(() => window.aiOfficeTabs.list())
+  const workbookTab = tabs.find((tab) => tab.filePath?.endsWith('two-sheets.xlsx'))
+  if (!workbookTab) throw Error('Workbook tab missing')
+  const activateWorkbook = () =>
+    shell.evaluate((id) => window.aiOfficeTabs.activate(id), workbookTab.id)
   const exportScope = async (scope, name, count) => {
+    // PDF exports open their result in another tab; restore the source first.
+    await activateWorkbook()
     const target = join(out, name + '.pdf')
     await app.evaluate((_, path) => {
       global.__macPdfTarget = path
@@ -219,6 +226,7 @@ try {
   expect(all.getPages()[0].getWidth()).toBeLessThan(all.getPages()[0].getHeight())
   expect(all.getPages()[1].getWidth()).toBeGreaterThan(all.getPages()[1].getHeight())
   checks.wholeWorkbookPdf = true
+  await activateWorkbook()
   await sheet.screenshot({ path: join(out, 'sheets.png') })
   await shell.evaluate((path) => window.aiOffice.openPath(path), archive)
   let latex

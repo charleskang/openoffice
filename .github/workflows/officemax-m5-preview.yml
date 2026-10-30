@@ -4,6 +4,11 @@ on:
   push:
     branches: [build/officemax-m5-preview]
   workflow_dispatch:
+    inputs:
+      validated_revision:
+        description: 'Previously Mac-validated app commit; only for changes to the build/test driver'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -35,11 +40,23 @@ jobs:
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
         with:
           workspaces: apps/sheets/native/xlsx-engine
+          cache-on-failure: true
       - name: Install exact dependencies
         run: npm ci
+      - name: Verify previously validated application source is identical
+        if: inputs.validated_revision != ''
+        env:
+          VALIDATED_REVISION: ${{ inputs.validated_revision }}
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin "$VALIDATED_REVISION"
+          git diff --exit-code "$VALIDATED_REVISION" HEAD -- apps packages package.json package-lock.json
+          echo "App source matches the previously passed Mac typecheck and feature tests: $VALIDATED_REVISION" >> "$GITHUB_STEP_SUMMARY"
       - name: Typecheck all modules
+        if: inputs.validated_revision == ''
         run: npm run typecheck
       - name: Check added features
+        if: inputs.validated_revision == ''
         run: >-
           node node_modules/vitest/vitest.mjs run
           apps/shell/tests/workspace-start.test.ts
@@ -79,6 +96,15 @@ jobs:
             lipo -archs "$bin" | grep -qw arm64
           done
           "$app/Contents/Resources/latex/tectonic" --version
+      - name: Keep candidate packages for repeatable runtime checks
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: OfficeMax-M5-package-candidate
+          path: |
+            apps/shell/release/*.dmg
+            apps/shell/release/*.zip
+          retention-days: 7
+          if-no-files-found: error
       - name: Test the packaged application
         run: node tools/smoke-mac-preview.mjs apps/shell/release/mac-arm64/OfficeMax.app preview-checks
       - name: Include source revision and checksums
