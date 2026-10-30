@@ -69,7 +69,7 @@ await writeFile(
 )
 const warm = spawnSync(
   join(resources, 'latex/tectonic'),
-  ['--untrusted', '--outdir', scratch, warmup],
+  ['-X', 'compile', '--untrusted', '--outdir', scratch, warmup],
   { encoding: 'utf8', timeout: 300000, env: { ...process.env, TECTONIC_UNTRUSTED_MODE: '1' } },
 )
 await writeFile(join(out, 'latex-warmup.log'), (warm.stdout ?? '') + (warm.stderr ?? ''))
