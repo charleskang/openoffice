@@ -1,0 +1,83 @@
+name: OfficeMax M5 preview with CJK PDF maps
+on:
+  push:
+    branches: [build/officemax-m5-preview-macos26]
+    paths:
+      - .github/workflows/officemax-m5-repack.yml
+      - tools/prepare-mac-repack.mjs
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: officemax-m5-cmaps-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  preview:
+    runs-on: macos-26
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      CSC_FOR_PULL_REQUEST: 'true'
+      GENOFFICE_MAC_X64: '0'
+      PREVIEW_VERSION: 0.13.4-mac-preview.2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check changed module and resource regression
+        run: |
+          npm run typecheck -w @genoffice/markdown
+          node node_modules/vitest/vitest.mjs run apps/markdown/tests/pdfjs-assets.test.ts apps/markdown/tests/latex-repair.test.ts apps/markdown/tests/pdf-export.test.ts apps/shell/tests/latex-project-import.test.ts
+      - name: Restore verified outputs with identical source
+        run: |
+          git fetch --depth=1 origin 616ff2fd9c9cb32b71e06edf407f1ee8bb5bd7e4
+          gh run download 41132011184 --repo charleskang/openoffice --name OfficeMax-M5-package-candidate --dir candidate
+          ditto -x -k candidate/OfficeMax-0.13.4-mac-preview.1-arm64-mac.zip package
+          node tools/prepare-mac-repack.mjs package/OfficeMax.app
+      - name: Build changed editor and prepare bundled engines
+        run: |
+          npm run build -w @genoffice/markdown
+          node tools/install-latex-engine.mjs darwin-arm64 darwin-x64
+          test -s apps/markdown/out/renderer/pdfjs/cmaps/Adobe-Korea1-UCS2.bcmap
+      - name: Package preview 2
+        working-directory: apps/shell
+        run: node ../../node_modules/electron-builder/out/cli/cli.js --mac --publish never -c.extraMetadata.version="$PREVIEW_VERSION"
+      - name: Verify signatures and CPU targets
+        run: |
+          set -euo pipefail
+          app="apps/shell/release/mac-arm64/OfficeMax.app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          for bin in "$app/Contents/MacOS/OfficeMax" "$app/Contents/Resources/native/xlsx-sidecar" "$app/Contents/Resources/latex/tectonic" "$app/Contents/Resources/ocr/vision-ocr"; do
+            lipo -archs "$bin" | grep -qw arm64
+          done
+      - name: Verify actual workbook and visible Korean PDF body
+        run: node tools/smoke-mac-preview.mjs apps/shell/release/mac-arm64/OfficeMax.app preview-checks
+      - name: Prepare installation information
+        run: |
+          cp docs/officemax-mac-preview.ko.md apps/shell/release/INSTALL-MAC.ko.md
+          cp preview-checks/result.json apps/shell/release/SMOKE-RESULT.json
+          printf '%s\n' "$GITHUB_SHA" > apps/shell/release/SOURCE-COMMIT.txt
+          shasum -a 256 apps/shell/release/*.dmg apps/shell/release/*.zip > apps/shell/release/SHA256SUMS.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: OfficeMax-M5-preview2
+          path: |
+            apps/shell/release/*.dmg
+            apps/shell/release/*.zip
+            apps/shell/release/INSTALL-MAC.ko.md
+            apps/shell/release/SMOKE-RESULT.json
+            apps/shell/release/SOURCE-COMMIT.txt
+            apps/shell/release/SHA256SUMS.txt
+          retention-days: 30
+          if-no-files-found: error
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: OfficeMax-M5-preview2-checks
+          path: preview-checks/
+          if-no-files-found: ignore

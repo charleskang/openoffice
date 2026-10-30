@@ -247,6 +247,18 @@ try {
     timeout: 300000,
   })
   await expect(workspace.locator('.latex-error')).toBeHidden()
+  // A render can succeed with only the equation painted when CID maps are absent.
+  const bodyInk = await workspace.getByTestId('latex-pdf-canvas').evaluate((canvas) => {
+    const start = Math.floor(canvas.height * 0.13)
+    const height = Math.floor(canvas.height * 0.05)
+    const pixels = canvas.getContext('2d').getImageData(0, start, canvas.width, height).data
+    let dark = 0
+    for (let i = 0; i < pixels.length; i += 4)
+      if (pixels[i] < 120 && pixels[i + 1] < 120 && pixels[i + 2] < 120 && pixels[i + 3] > 0) dark++
+    return dark
+  })
+  expect(bodyInk).toBeGreaterThan(150)
+  checks.latexBodyVisible = true
   await latex.screenshot({ path: join(out, 'latex-zip.png') })
   checks.latexZipPreview = true
   expect([await sha(workbook), await sha(archive)]).toEqual(before)

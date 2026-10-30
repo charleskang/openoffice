@@ -1,4 +1,6 @@
 import react from '@vitejs/plugin-react'
+import { resolve } from 'node:path'
+import { preparePdfjsAssets } from './pdfjs-assets'
 import { defineConfig } from 'vite'
 
 // npm hoists some @tiptap packages to the repo root (shared with docs at a
@@ -21,6 +23,7 @@ const TIPTAP_DEDUPE = [
 // renderer-only dev server (embedded by shell via MARKDOWN_RENDERER_URL for HMR; no standalone Electron)
 export default defineConfig({
   root: 'src/renderer',
+  publicDir: preparePdfjsAssets(resolve(__dirname, '../../.local/markdown-pdfjs-public')),
   plugins: [react()],
   resolve: { dedupe: TIPTAP_DEDUPE },
   server: {

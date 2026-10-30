@@ -1,4 +1,6 @@
 import react from '@vitejs/plugin-react'
+import { resolve } from 'node:path'
+import { preparePdfjsAssets } from './pdfjs-assets'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 
 // npm hoists some @tiptap packages to the repo root (shared with docs at a
@@ -32,6 +34,7 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin({ exclude: ['@genoffice/i18n', '@genoffice/electron-utils'] })],
   },
   renderer: {
+    publicDir: preparePdfjsAssets(resolve(__dirname, '../../.local/markdown-pdfjs-public')),
     plugins: [react()],
     resolve: { dedupe: TIPTAP_DEDUPE },
     server: {

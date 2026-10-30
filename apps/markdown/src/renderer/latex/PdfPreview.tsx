@@ -22,7 +22,16 @@ export function PdfPreview({ bytes }: { bytes: Uint8Array }) {
     setPdf(null)
     setError(false)
     setPageNumber(1)
-    const task = getDocument({ data: new Uint8Array(bytes), useSystemFonts: true })
+    const assets = new URL('pdfjs/', window.location.href).href
+    const task = getDocument({
+      data: new Uint8Array(bytes),
+      useSystemFonts: true,
+      cMapUrl: assets + 'cmaps/',
+      cMapPacked: true,
+      standardFontDataUrl: assets + 'standard_fonts/',
+      wasmUrl: assets + 'wasm/',
+      iccUrl: assets + 'iccs/',
+    })
     void task.promise
       .then((document) => {
         if (alive) setPdf(document)
