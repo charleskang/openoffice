@@ -1,0 +1,90 @@
+name: OfficeMax Mac beta updates
+on:
+  push:
+    branches: [build/officemax-mac-updates]
+    paths:
+      - .github/workflows/officemax-mac-updates.yml
+      - tools/restore-mac-update-build.mjs
+      - tools/mac-update-release.mjs
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: officemax-mac-updates-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  package:
+    runs-on: macos-26
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      CSC_FOR_PULL_REQUEST: 'true'
+      GENOFFICE_MAC_X64: '0'
+      UPDATE_VERSION: 0.13.5-beta.1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verify update channel and existing Mac policy
+        run: node node_modules/vitest/vitest.mjs run apps/shell/tests/mac-update-release.test.ts apps/shell/tests/updater.test.ts apps/shell/tests/update-feed-config.test.ts apps/shell/tests/update-channel.test.ts
+      - name: Restore exact Mac-validated application outputs
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = arm64
+          git fetch --depth=1 origin aed22bd2846967fdd133bc170c3fb5ac6e2b2038
+          gh run download 41137043661 --repo charleskang/openoffice --name OfficeMax-M5-preview2 --dir candidate
+          echo '7116fb989cea47020aabe4a973e548ec2def6a3d28d08c06b4ff856d8677c485  candidate/OfficeMax-0.13.4-mac-preview.2-arm64-mac.zip' | shasum -a 256 -c -
+          ditto -x -k candidate/OfficeMax-0.13.4-mac-preview.2-arm64-mac.zip package
+          node tools/restore-mac-update-build.mjs package/OfficeMax.app
+          node tools/install-latex-engine.mjs darwin-arm64 darwin-x64
+      - name: Package the next beta without publishing
+        working-directory: apps/shell
+        run: node ../../node_modules/electron-builder/out/cli/cli.js --mac --publish never -c.extraMetadata.version="$UPDATE_VERSION"
+      - name: Verify signatures, package identity and CPU targets
+        run: |
+          set -euo pipefail
+          app="apps/shell/release/mac-arm64/OfficeMax.app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          for bin in "$app/Contents/MacOS/OfficeMax" "$app/Contents/Resources/native/xlsx-sidecar" "$app/Contents/Resources/latex/tectonic" "$app/Contents/Resources/ocr/vision-ocr"; do
+            test -x "$bin"
+            lipo -archs "$bin" | grep -qw arm64
+          done
+          node --input-type=module -e 'import asar from "@electron/asar"; const p=JSON.parse(asar.extractFile("apps/shell/release/mac-arm64/OfficeMax.app/Contents/Resources/app.asar","package.json")); if(p.version!==process.env.UPDATE_VERSION) throw Error("Wrong packaged version");'
+          grep -q 'owner: charleskang' "$app/Contents/Resources/app-update.yml"
+          grep -q 'repo: openoffice' "$app/Contents/Resources/app-update.yml"
+      - name: Exercise actual Mac workbook and visible Korean LaTeX preview
+        run: node tools/smoke-mac-preview.mjs apps/shell/release/mac-arm64/OfficeMax.app preview-checks
+      - name: Prepare and verify the update feeds
+        run: |
+          cp docs/officemax-mac-updates.ko.md apps/shell/release/INSTALL-MAC.ko.md
+          cp docs/releases/officemax-0.13.5-beta.1.ko.md apps/shell/release/RELEASE-NOTES.ko.md
+          cp preview-checks/result.json apps/shell/release/SMOKE-RESULT.json
+          printf '%s\n' "$GITHUB_SHA" > apps/shell/release/SOURCE-COMMIT.txt
+          node tools/mac-update-release.mjs apps/shell/release "$UPDATE_VERSION"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: OfficeMax-Mac-beta-update
+          path: |
+            apps/shell/release/*.dmg
+            apps/shell/release/*.zip
+            apps/shell/release/beta-mac.yml
+            apps/shell/release/latest-mac.yml
+            apps/shell/release/INSTALL-MAC.ko.md
+            apps/shell/release/RELEASE-NOTES.ko.md
+            apps/shell/release/SMOKE-RESULT.json
+            apps/shell/release/SOURCE-COMMIT.txt
+            apps/shell/release/SHA256SUMS.txt
+            apps/shell/release/RELEASE-VERIFIED.json
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: OfficeMax-Mac-beta-update-checks
+          path: preview-checks/
+          if-no-files-found: ignore
