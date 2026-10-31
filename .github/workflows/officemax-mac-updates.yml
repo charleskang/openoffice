@@ -1,12 +1,16 @@
 name: OfficeMax Mac beta updates
 on:
-  push:
-    branches: [build/officemax-mac-updates]
-    paths:
-      - .github/workflows/officemax-mac-updates.yml
-      - tools/restore-mac-update-build.mjs
-      - tools/mac-update-release.mjs
   workflow_dispatch:
+    inputs:
+      update_version:
+        description: "New standard beta version; commit matching release notes first"
+        type: string
+        required: true
+        default: 0.13.5-beta.1
+      reuse_validated_outputs:
+        description: "First migration only: reuse identical preview-2 application outputs"
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
@@ -19,20 +23,34 @@ jobs:
     timeout-minutes: 35
     env:
       GH_TOKEN: ${{ github.token }}
-      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-      CSC_FOR_PULL_REQUEST: 'true'
-      GENOFFICE_MAC_X64: '0'
-      UPDATE_VERSION: 0.13.5-beta.1
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      CSC_FOR_PULL_REQUEST: "true"
+      GENOFFICE_MAC_X64: "0"
+      UPDATE_VERSION: ${{ inputs.update_version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 22
           cache: npm
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        if: ${{ !inputs.reuse_validated_outputs }}
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+        if: ${{ !inputs.reuse_validated_outputs }}
+        with:
+          workspaces: apps/sheets/native/xlsx-engine
+          cache-on-failure: true
       - run: npm ci
+      - name: Validate the requested beta version and release notes
+        run: |
+          node --input-type=module -e 'if(!/^\d+\.\d+\.\d+-beta\.\d+$/.test(process.env.UPDATE_VERSION)) throw Error("Use a standard beta version");'
+          test -s "docs/releases/officemax-$UPDATE_VERSION.ko.md"
       - name: Verify update channel and existing Mac policy
         run: node node_modules/vitest/vitest.mjs run apps/shell/tests/mac-update-release.test.ts apps/shell/tests/updater.test.ts apps/shell/tests/update-feed-config.test.ts apps/shell/tests/update-channel.test.ts
       - name: Restore exact Mac-validated application outputs
+        if: inputs.reuse_validated_outputs
         run: |
           set -euo pipefail
           test "$(uname -m)" = arm64
@@ -41,7 +59,42 @@ jobs:
           echo '7116fb989cea47020aabe4a973e548ec2def6a3d28d08c06b4ff856d8677c485  candidate/OfficeMax-0.13.4-mac-preview.2-arm64-mac.zip' | shasum -a 256 -c -
           ditto -x -k candidate/OfficeMax-0.13.4-mac-preview.2-arm64-mac.zip package
           node tools/restore-mac-update-build.mjs package/OfficeMax.app
-          node tools/install-latex-engine.mjs darwin-arm64 darwin-x64
+      - name: Typecheck every editor for a new application build
+        if: ${{ !inputs.reuse_validated_outputs }}
+        run: npm run typecheck
+      - name: Check Windows-added features on Mac
+        if: ${{ !inputs.reuse_validated_outputs }}
+        run: >-
+          node node_modules/vitest/vitest.mjs run
+          apps/shell/tests/workspace-start.test.ts
+          apps/shell/tests/openai-profile.test.ts
+          apps/shell/tests/latex-project-import.test.ts
+          apps/shell/tests/embedded-chart-workbooks.test.ts
+          apps/markdown/tests/latex-repair.test.ts
+          apps/markdown/tests/pdf-export.test.ts
+          apps/markdown/tests/pdfjs-assets.test.ts
+          apps/sheets/tests/workbook-pdf.test.ts
+          apps/sheets/tests/PdfExportDialog.test.ts
+          apps/sheets/tests/print-visuals.test.ts
+          apps/sheets/tests/print-fit-rounding.test.ts
+          apps/sheets/tests/embedded-chart-structure.test.ts
+          apps/sheets/tests/embedded-chart-formulas.test.ts
+          apps/slides/tests/math-font-fallback.test.ts
+          apps/slides/tests/embedded-chart-broadcast.test.ts
+          apps/epub/tests/book-print-html.test.ts
+          packages/pptx-engine/tests/chart-data-workbook.test.ts
+          packages/pptx-engine/tests/chart-workbook-structure.test.ts
+          packages/pptx-engine/tests/parse-formatted-breaks.test.ts
+          packages/pptx-engine/tests/table-equation-preview.test.ts
+          packages/pptx-render/tests/scatter-fidelity.test.ts
+          packages/pptx-render/tests/formatted-breaks.test.ts
+          packages/pptx-render/tests/chart-authored-layout.test.ts
+          packages/pptx-render/tests/table-preview-render.test.ts
+      - name: Build every editor and the spreadsheet engine
+        if: ${{ !inputs.reuse_validated_outputs }}
+        run: npm run build:all
+      - name: Prepare bundled LaTeX engines
+        run: node tools/install-latex-engine.mjs darwin-arm64 darwin-x64
       - name: Package the next beta without publishing
         working-directory: apps/shell
         run: node ../../node_modules/electron-builder/out/cli/cli.js --mac --publish never -c.extraMetadata.version="$UPDATE_VERSION"
@@ -62,7 +115,7 @@ jobs:
       - name: Prepare and verify the update feeds
         run: |
           cp docs/officemax-mac-updates.ko.md apps/shell/release/INSTALL-MAC.ko.md
-          cp docs/releases/officemax-0.13.5-beta.1.ko.md apps/shell/release/RELEASE-NOTES.ko.md
+          cp "docs/releases/officemax-$UPDATE_VERSION.ko.md" apps/shell/release/RELEASE-NOTES.ko.md
           cp preview-checks/result.json apps/shell/release/SMOKE-RESULT.json
           printf '%s\n' "$GITHUB_SHA" > apps/shell/release/SOURCE-COMMIT.txt
           node tools/mac-update-release.mjs apps/shell/release "$UPDATE_VERSION"

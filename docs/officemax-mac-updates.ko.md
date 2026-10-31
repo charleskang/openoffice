@@ -27,4 +27,6 @@ GitHub 저장소 `charleskang/openoffice` → Releases → 해당 Mac 베타 릴
 
 모든 앱 소스를 전체 빌드한 뒤, `beta` 형식의 더 높은 버전으로 DMG·ZIP과 업데이트 안내 파일을 함께 만듭니다. `tools/mac-update-release.mjs`가 각 파일의 이름·크기·SHA-512, Mac 실행 검사 결과를 검증하고 SHA-256 목록을 생성합니다. 게시 전에는 GitHub 릴리스 초안에 올려 검토합니다.
 
-현재 `OfficeMax Mac beta updates` 워크플로의 출력 재사용은 `aed22bd2`와 앱 소스가 같은 경우에만 허용됩니다. 앱 기능을 수정했다면 전체 Mac 빌드를 사용해야 합니다. 최초 시험판의 Actions 파일이 만료되면 전체 빌드가 필요합니다.
+`OfficeMax Mac beta updates` 워크플로는 수동 실행하며, 기본값은 모든 편집기와 네이티브 엔진을 새로 빌드합니다. `update_version`에 새 베타 버전을 입력하고 같은 버전의 릴리스 설명을 먼저 커밋합니다. 빌드 결과는 Artifacts에 남고 자동 공개하지 않습니다.
+
+처음 업데이트 경로를 연결할 때만 `reuse_validated_outputs`를 선택할 수 있습니다. 출력 재사용은 `aed22bd2`와 앱 소스가 같은 경우에만 허용됩니다. 기본 전체 빌드는 최초 시험판의 Actions 파일이 만료돼도 영향을 받지 않습니다.
