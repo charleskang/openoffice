@@ -14,6 +14,33 @@ export async function digest(file, algorithm, encoding) {
   return hash.digest(encoding)
 }
 
+export async function createMacUpdateFeed(folder, version) {
+  if (!/^\d+\.\d+\.\d+-beta\.\d+$/.test(version) || !semver.gt(version, '0.13.4-mac-preview.2'))
+    throw Error('Use a newer standard beta version')
+  // --publish never may omit electron-builder's channel files. Derive one
+  // explicitly from this build's exact packages, never from a previous feed.
+  const files = []
+  for (const suffix of ['arm64-mac.zip', 'arm64.dmg']) {
+    const url = `OfficeMax-${version}-${suffix}`
+    const file = join(folder, url)
+    files.push({
+      url,
+      size: (await stat(file)).size,
+      sha512: await digest(file, 'sha512', 'base64'),
+    })
+  }
+  await writeFile(
+    join(folder, 'beta-mac.yml'),
+    yaml.dump({
+      version,
+      files,
+      path: files[0].url,
+      sha512: files[0].sha512,
+      releaseDate: new Date().toISOString(),
+    }),
+  )
+}
+
 export async function validateMacUpdate(folder, version) {
   if (!/^\d+\.\d+\.\d+-beta\.\d+$/.test(version) || !semver.gt(version, '0.13.4-mac-preview.2'))
     throw Error('Use a newer standard beta version')
@@ -58,22 +85,26 @@ export async function validateMacUpdate(folder, version) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const folder = resolve(process.argv[2])
+  const verifyOnly = process.argv.includes('--verify-only')
+  if (!verifyOnly) await createMacUpdateFeed(folder, process.argv[3])
   const receipt = await validateMacUpdate(folder, process.argv[3])
-  // Older GitHubProvider versions fall back to this name after a missing beta feed.
-  await writeFile(join(folder, 'latest-mac.yml'), await readFile(join(folder, 'beta-mac.yml')))
-  const assets = [
-    ...receipt.files,
-    'beta-mac.yml',
-    'latest-mac.yml',
-    'INSTALL-MAC.ko.md',
-    'RELEASE-NOTES.ko.md',
-    'SMOKE-RESULT.json',
-    'SOURCE-COMMIT.txt',
-  ]
-  const sums = await Promise.all(
-    assets.map(async (file) => `${await digest(join(folder, file), 'sha256', 'hex')}  ${file}`),
-  )
-  await writeFile(join(folder, 'SHA256SUMS.txt'), sums.join('\n') + '\n')
-  await writeFile(join(folder, 'RELEASE-VERIFIED.json'), JSON.stringify(receipt, null, 2) + '\n')
+  if (!verifyOnly) {
+    // Older GitHubProvider versions fall back to this name after a missing beta feed.
+    await writeFile(join(folder, 'latest-mac.yml'), await readFile(join(folder, 'beta-mac.yml')))
+    const assets = [
+      ...receipt.files,
+      'beta-mac.yml',
+      'latest-mac.yml',
+      'INSTALL-MAC.ko.md',
+      'RELEASE-NOTES.ko.md',
+      'SMOKE-RESULT.json',
+      'SOURCE-COMMIT.txt',
+    ]
+    const sums = await Promise.all(
+      assets.map(async (file) => `${await digest(join(folder, file), 'sha256', 'hex')}  ${file}`),
+    )
+    await writeFile(join(folder, 'SHA256SUMS.txt'), sums.join('\n') + '\n')
+    await writeFile(join(folder, 'RELEASE-VERIFIED.json'), JSON.stringify(receipt, null, 2) + '\n')
+  }
   console.log(JSON.stringify(receipt))
 }

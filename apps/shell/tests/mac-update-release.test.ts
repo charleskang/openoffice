@@ -7,7 +7,11 @@ import { HttpError } from 'builder-util-runtime'
 import { GitHubProvider } from 'electron-updater/out/providers/GitHubProvider'
 import { PRODUCT_REPO_SLUG } from '@genoffice/i18n'
 // @ts-expect-error The release helper is a directly executable Node module.
-import { digest, validateMacUpdate } from '../../../tools/mac-update-release.mjs'
+import {
+  createMacUpdateFeed,
+  digest,
+  validateMacUpdate,
+} from '../../../tools/mac-update-release.mjs'
 
 const require = createRequire(import.meta.url)
 const semver = require('semver')
@@ -48,6 +52,12 @@ async function fixture() {
 }
 
 describe('Mac update package validation', () => {
+  it('generates a matching feed when publish-never packaging omits it', async () => {
+    const folder = await fixture()
+    await rm(join(folder, 'beta-mac.yml'))
+    await createMacUpdateFeed(folder, VERSION)
+    expect(await validateMacUpdate(folder, VERSION)).toMatchObject({ version: VERSION })
+  })
   it('accepts the feed only with its matching packages and passed Mac checks', async () => {
     expect(await validateMacUpdate(await fixture(), VERSION)).toMatchObject({
       version: VERSION,
