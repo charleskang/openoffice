@@ -383,6 +383,11 @@ import { showErrorDialog } from './error-dialog'
 import { startRendererWatchdog } from './renderer-watchdog'
 import { memoryFigures, startCrashWatch, startLowMemoryWatch } from './crash-watch'
 import {
+  diagnosticLogsLabel,
+  installCrashDiagnostics,
+  openDiagnosticLogs,
+} from './crash-diagnostics-runtime'
+import {
   capStatPaths,
   matchesExtFamily,
   normalizeRecentQuery,
@@ -578,6 +583,14 @@ if (!app.isPackaged) {
     app.setPath('userData', join(app.getPath('appData'), DEV_USER_DATA_DIR_NAME))
   }
 }
+
+// Observe errors before the startup sequence creates windows or services.
+const diagnostics = installCrashDiagnostics({
+  editorOf: (wc) =>
+    tabManager?.describeWebContents(wc.id)?.kind ?? detachedDocumentFor(wc.id)?.kind ?? 'home',
+  memory: () =>
+    memoryFigures({ aiStreams: activeAiStreamCount, cliChildren: trackedSubscriptionChildCount }),
+})
 
 /**
  * `--headless-export <file> --to <format> --out <path> [--json]`: one document, no
@@ -853,6 +866,7 @@ const endForOsSession = createOsSessionEnd({
   markSessionOsEnd,
   editors: () => recoveryEditors(),
   finish: () => {
+    diagnostics.finish('os-shutdown')
     stopSheetsSidecar()
     stopMcpSync()
     releaseAppResources()
@@ -4515,6 +4529,18 @@ function applyMenuFor(kind: TabKind): void {
       buildHomeMenu()
   }
   withHelpItems()
+  const helpMenu = Menu.getApplicationMenu()?.items.find((item) => item.role === 'help')?.submenu
+  if (helpMenu && !helpMenu.items.some((item) => item.id === 'officemax-error-logs')) {
+    helpMenu.append(
+      Menu.buildFromTemplate([
+        {
+          id: 'officemax-error-logs',
+          label: diagnosticLogsLabel(currentLang()),
+          click: openDiagnosticLogs,
+        },
+      ]).items[0]!,
+    )
+  }
   withViewMenu()
 }
 
@@ -8650,6 +8676,7 @@ app.whenReady().then(async () => {
     app.quit()
     return
   }
+  diagnostics.startSession()
   // a subscription CLI a force-killed previous run left behind is ended, then
   // this run records the ones it starts (userData is final by now)
   void initSubscriptionChildTracking(app.getPath('userData')).catch(() => undefined)
@@ -9079,6 +9106,7 @@ app.whenReady().then(async () => {
     },
     t: (key, params) => tm(key, params),
   })
+  diagnostics.observeRejections()
   // a PC that runs short of memory during an AI request leaves a line too
   startLowMemoryWatch({ aiStreams: activeAiStreamCount, memory: crashMemory })
   // resource watchdog: a renderer that stays hot for minutes gets diagnostics

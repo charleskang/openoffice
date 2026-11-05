@@ -1,0 +1,91 @@
+name: OfficeMax crash logs for Mac
+on:
+  push:
+    branches: [fix/officemax-crash-logs]
+    paths:
+      - .github/workflows/officemax-crash-logs.yml
+      - apps/shell/src/main/crash-diagnostics*.ts
+      - apps/shell/src/main/index.ts
+      - tools/smoke-crash-logs.mjs
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: officemax-crash-logs-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  diagnostics:
+    runs-on: macos-26
+    timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      CSC_FOR_PULL_REQUEST: 'true'
+      GENOFFICE_MAC_X64: '0'
+      PREVIEW_VERSION: 0.13.5-beta.2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validate logging and existing recovery behavior
+        run: |
+          npm run typecheck -w @genoffice/shell
+          node node_modules/vitest/vitest.mjs run apps/shell/tests/crash-diagnostics.test.ts apps/shell/tests/crash-diagnostics-runtime.test.ts apps/shell/tests/crash-log.test.ts apps/shell/tests/crash-watch.test.ts apps/shell/tests/session-record.test.ts apps/shell/tests/launch-recovery.test.ts apps/shell/tests/subscription-lifetime.test.ts
+      - name: Restore unchanged editors and rebuild the shell
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = arm64
+          git fetch --depth=1 origin efb906ab5c14b5c91a867bbf60a4c61586ea9324
+          gh run download 41153268692 --repo charleskang/openoffice --name OfficeMax-Mac-beta-update --dir candidate
+          echo 'ff5ad5c2909dfd329f9daaca0304cf155ba644f96ca0c97d65386b6e7ed9b4ab  candidate/OfficeMax-0.13.5-beta.1-arm64-mac.zip' | shasum -a 256 -c -
+          ditto -x -k candidate/OfficeMax-0.13.5-beta.1-arm64-mac.zip package
+          node tools/restore-crash-log-mac-build.mjs package/OfficeMax.app
+          npm run build -w @genoffice/shell
+          node tools/install-latex-engine.mjs darwin-arm64 darwin-x64
+      - name: Package the personal Mac version
+        working-directory: apps/shell
+        run: node ../../node_modules/electron-builder/out/cli/cli.js --mac --publish never -c.extraMetadata.version="$PREVIEW_VERSION"
+      - name: Verify signature and bundled engines
+        run: |
+          set -euo pipefail
+          app="apps/shell/release/mac-arm64/OfficeMax.app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          for bin in "$app/Contents/MacOS/OfficeMax" "$app/Contents/Resources/native/xlsx-sidecar" "$app/Contents/Resources/latex/tectonic" "$app/Contents/Resources/ocr/vision-ocr"; do
+            lipo -archs "$bin" | grep -qw arm64
+          done
+      - name: Verify error recording and interrupted-run recovery in the actual app
+        run: node tools/smoke-crash-logs.mjs apps/shell/release/mac-arm64/OfficeMax.app diagnostics-checks
+      - name: Verify existing workbook PDF and visible Korean LaTeX preview
+        run: node tools/smoke-mac-preview.mjs apps/shell/release/mac-arm64/OfficeMax.app preview-checks
+      - name: Prepare personal download files
+        run: |
+          cp docs/officemax-crash-logs.ko.md apps/shell/release/ERROR-LOGS.ko.md
+          cp diagnostics-checks/result.json apps/shell/release/DIAGNOSTICS-RESULT.json
+          cp preview-checks/result.json apps/shell/release/SMOKE-RESULT.json
+          printf '%s\n' "$GITHUB_SHA" > apps/shell/release/SOURCE-COMMIT.txt
+          shasum -a 256 apps/shell/release/*.dmg apps/shell/release/*.zip > apps/shell/release/SHA256SUMS.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: OfficeMax-Mac-crash-logs
+          path: |
+            apps/shell/release/*.dmg
+            apps/shell/release/*.zip
+            apps/shell/release/ERROR-LOGS.ko.md
+            apps/shell/release/DIAGNOSTICS-RESULT.json
+            apps/shell/release/SMOKE-RESULT.json
+            apps/shell/release/SOURCE-COMMIT.txt
+            apps/shell/release/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: OfficeMax-Mac-crash-log-checks
+          path: |
+            diagnostics-checks/
+            preview-checks/
+          if-no-files-found: ignore

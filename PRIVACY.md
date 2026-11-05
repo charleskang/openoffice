@@ -367,7 +367,15 @@ Nothing in this list is uploaded by the app.
   programs were running. It holds no document text, file names, paths or
   error messages, and it is kept under
   64 KB by dropping the oldest lines. The app never sends it anywhere; if you
-  report a problem, you can attach it yourself. No crash dumps are written.
+  report a problem, you can attach it yourself. No crash dumps are written. Additional local reports in `diagnostics/error-*.json`
+  record app/runtime versions and application-code-relative stack locations
+  (never document paths or raw error messages). These cover startup errors,
+  preload/renderer errors and unresponsive pages as well. At most 40 reports
+  are kept, each under 8 KB; repeated identical errors are limited to one per
+  minute. A local `diagnostics/session.json` heartbeat lets the next launch
+  report a missing clean exit, without claiming whether it was a crash, a
+  force quit or a power interruption. Help → Open Error Logs Folder opens
+  these local files. Nothing is uploaded automatically.
 - **Your skills** (`~/.ieumoffice/skills`): the skills you added or made.
   A template you save with a skill is a copy of your document, kept in the
   skill's folder (`assets/`); it holds whatever that document held, so use
