@@ -1,7 +1,7 @@
-name: OfficeMax crash logs for Mac
+name: OfficeMax crash logs for Mac 15
 on:
   push:
-    branches: [fix/officemax-crash-logs]
+    branches: [fix/officemax-crash-logs-macos15]
     paths:
       - .github/workflows/officemax-crash-logs.yml
       - apps/shell/src/main/crash-diagnostics*.ts
@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   diagnostics:
-    runs-on: macos-26
+    runs-on: macos-15
     timeout-minutes: 40
     env:
       GH_TOKEN: ${{ github.token }}
